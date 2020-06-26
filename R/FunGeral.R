@@ -1,12 +1,3 @@
-#-------------------------------------------------------------------------------------#
-###################################    Funciones  #####################################
-#-------------------------------------------------------------------------------------#
-
-# 1er y 2do Momentos de una normal truncada -------------------------------------------
-# u  = vector media
-# S  = Matris de varianza
-# qc = datos
-
 MomemNT <- function(u=c(0,0),S=diag(2),qc=c(1,2)) {
   
   nic=length(u)
@@ -19,7 +10,7 @@ MomemNT <- function(u=c(0,0),S=diag(2),qc=c(1,2)) {
     
     dd <- dnorm(-qq)
     H <- qq*dd
-    EX <- (1/alpha)*dd   # a vector with a length of nic
+    EX <- (1/alpha)*dd   
     EXX <- 1+1/alpha*H
     varX <- EXX-EX^2
     Eycens <- -sqrt(S)*EX+u
@@ -77,10 +68,6 @@ MomemNT <- function(u=c(0,0),S=diag(2),qc=c(1,2)) {
   return(list(Ey=Eycens,Eyy=E2yy,Vary=varyic))
   
 }
-
-# Construcion de los phi --------------------------------------------------------------
-# pit = pi's
-
 estphit = function(pit){
   p = length(pit)
   Phi = matrix(0,ncol=p,nrow=p)
@@ -95,15 +82,7 @@ estphit = function(pit){
   }
   else return(pit)
 }
-
-
-
-# Construcion de la Matriz Mn(phi) ----------------------------------------------------
-# pi     = pi's
-# n      = tamnho
-# sigma2 = varianza del error
-
-MatArp<-function(pii,n,sigma2){
+.Mat<-function(pii,n,sigma2){
   p = length(pii)
   phi=estphit(pii) 
   if (n==1) Rn = 1
@@ -113,24 +92,50 @@ MatArp<-function(pii,n,sigma2){
   Rnx<-(Rnx+t(Rnx))/2
   return(Rnx)
 }
-
-
-
-
-# Funcion para maximizar el EM : Estima phis de Arp -----------------------------------
-# pi     = vector de pi's
-# beta1  = vector de betas
-# sigmae = varianza del error
-# ubi    = Esperana de b (efecto misto)
-# ubbi   = Esperana de bb'
-# uybi   = Experanza de yb
-# uyyi   = Esperanza de yy'
-# uyi    = esperanza de y'
-# x      = matrix corespondiente de los efectos fijos beta
-# z      = matrix corespondiente de los efectos aletorios b
-# nj     = observaciones por individuo
-
-FCiArp<-function(pi,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,nj){
+MatArp<- function(pii,tt,sigma2){
+  if(min(tt)==0){tt=tt+1}else{tt=tt}
+  A <- .Mat(pii =pii,n=max(tt),sigma2=sigma2)
+  B <- matrix(NA,nrow=length(tt),ncol=length(tt))
+  ii <- 0
+  for(i in tt)
+  {
+    ii <- ii+1
+    jj <- 0
+    for(j in tt)
+    {
+      jj <- jj+1  
+      B[ii,jj]<-A[i,j]   
+    }
+  }
+  return(B)
+}
+.MatJ<-function(phi,n,sigma2){
+  p = length(phi)
+    if (n==1) Rn = 1
+  else Rn = toeplitz(ARMAacf(ar=phi, ma=0, lag.max = n-1))
+  rhos = ARMAacf(ar=phi, ma=0, lag.max = p)[(1:p)+1]
+  Rnx<-sigma2*Rn/(1-sum(rhos*phi))
+  Rnx<-(Rnx+t(Rnx))/2
+  return(Rnx)
+}
+MatArpJ<- function(phi,tt,sigma2){
+  if(min(tt)==0){tt=tt+1}else{tt=tt}
+  A <-.MatJ(phi =phi,n=max(tt),sigma2=sigma2)
+  B <- matrix(NA,nrow=length(tt),ncol=length(tt))
+  ii <- 0
+  for(i in tt)
+  {
+    ii <- ii+1
+    jj <- 0
+    for(j in tt)
+    {
+      jj <- jj+1  
+      B[ii,jj]<-A[i,j]   
+    }
+  }
+  return(B)
+}
+FCiArp<-function(pi,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,tt,nj){
   m<-length(nj)[1]
   N<-sum(nj)
   p<-dim(x)[2]
@@ -148,9 +153,9 @@ FCiArp<-function(pi,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,nj){
     uy<-uyi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),j]
     x1=matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
     z1=matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
-    #tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ]
+    tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     gammai=x1%*%beta1                                                
-    Cii<- MatArp(pi,nj[j],sigmae) #MatAr1(tt1,rho,gamma,sigmae)
+    Cii<- MatArp(pi,tt1,sigmae)  
     
     soma<- soma - 0.5*log(det(as.matrix(Cii)))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))
                                                     +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))
@@ -158,24 +163,6 @@ FCiArp<-function(pi,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,nj){
   
   return(-soma)
 }
-
-##########################################################################
-## Derivadas da matriz do modelo Yi=XiB+Zbi+ei, ei~N(0,sigma2*Mn(phi)), ##
-##  bi~N(0, D(alpha)), vector de parametros teta=(betas,phi,sigma,alfa) ##
-##########################################################################
-
-
-# Funcion para el calculo de D(y,beta) -------------------------------
-# Matriz usada para la reparametrizacion del modelo 
-# en que :
-# D[i,j] = (yi-xi*beta)*(yj-xj*beta)+...+(yn+1-j-xn+1-j*beta)*(yn+1-i-xn+1-i*beta)
-# beta   = betas do modelo
-# y      = vector y (variable independediente)
-# Z      = matriz Z (variables correspondiente a los afectos aleatorios)
-# b      = efectos aleatorios
-# x      = Matriz X (variables dependedientes)
-# p      = orden del autoregresivo
-
 Dbeta = function(beta,y,x,z,b,p) {
   n = length(y)
   D = matrix(0,p+1,p+1)
@@ -187,29 +174,9 @@ Dbeta = function(beta,y,x,z,b,p) {
   }
   return(D)
 }
-
-# FUNCION DE LA PRIMERA DERIVADA DE LA MATRIZ Mn(phi) (Errores auto correlacionados)------------------------------------
-# (vector de derivaras de phi)
-# se para la deriabada de phi se usa la matriz particionada D[D11,Dphi1;D1phi,Dphiphi]
-#lamda*D(y,beta)*landa= D11-2*phi*Dphi1+2*phi*Dphiphi*phi 
-# en que landa=(1,phi)
-# M = Matriz de variaza de los efectos aleaoreos 
-
-#Matriz gp=log(det(Mp(phi)))
-#gp = function(phi,sigma=sig2){if(length(phi)==1){log(MatArp(phi,length(phi),sigma))
-#}else{log(det(MatArp(phi,length(phi),sigma)))}}
-
-
 D11   = function(beta,y,x,z,b,p) matrix(Dbeta(beta,y,x,z,b,p)[1,1])
 Dphi = function(beta,y,x,z,b,p) matrix(Dbeta(beta,y,x,z,b,p)[2:(p+1),1])
 Dphiphi = function(beta,y,x,z,b,p) Dbeta(beta,y,x,z,b,p)[2:(p+1),2:(p+1)]
-
-
-
-# FUNCION DE LA PRIMERA DERIVADA DE LA MATRIZ D (efectos aleatoreos)------------------------------------
-# (vector de derivaras de alpha)
-# M = Matriz de variaza de los efectos aleaoreos 
-
 dD<-function(M){
   
   m1<-dim(M)[1]
@@ -228,21 +195,7 @@ dD<-function(M){
   return(d=d)
   
 }
-
-#MATRIS DE INFORACION PARA MI MODELO----------------------------------------
-
-#MAtris jacobiana (primeras derivadas)
-# theta = parametros del modelo ordenado de la siguitente forma (betas,sigma,phis)
-# yest     = vector y (variable independediente) uyi
-# x     = matriz X (variables dependedientes)
-# Z    = matriz Z (variables correspondiente a los afectos aleatorios)
-# best     = Ubi
-# bb    =ubb
-# D1= matriz D
-
-#theta=tetaMI;y=uy;b=ub;bb=ubb; x=x1;z=z1
-
-Jt = function(theta,y,x,z,b,bb,p,Arp,D1) {
+Jt = function(theta,y,x,z,tt,b,bb,p,Arp,D1) {
   l      = p
   n      = length(y)
   beta   = matrix(theta[1:l])
@@ -255,17 +208,12 @@ Jt = function(theta,y,x,z,b,bb,p,Arp,D1) {
           }
   if(Arp!=0){  phi    = theta[(l+2):length(theta)]
   p      = length(phi)
-  Mn     = MatArp(phi,n,sig2)
+  Mn     = MatArpJ(phi,tt,sig2)
   invMn  = solve(Mn/sig2)
   lambda = matrix(c(-1,phi))
   spi    = t(lambda)%*%Dbeta(beta,y,x,z,b,p)%*%lambda}
-  # if(length(invMn)==1){
-  #   dbeta  = 1/sig2*(x%*%invMn%*%(y-z%*%b)- x%*%invMn%*%t(x)%*%beta)
-  #   }
-  #if(length(invMn)!=1){
-    dbeta  = 1/sig2*(t(x)%*%invMn%*%(y-z%*%b)- t(x)%*%invMn%*%x%*%beta)
-   # }
-  
+   dbeta  = 1/sig2*(t(x)%*%invMn%*%(y-z%*%b)- t(x)%*%invMn%*%x%*%beta)
+ 
   dsig2  = -n/(2*sig2) +spi/(2*sig2^2)
   if(length(D1)==1){
     dD_alp = 1
@@ -286,81 +234,11 @@ Jt = function(theta,y,x,z,b,bb,p,Arp,D1) {
   }
   derivadas=cbind(t(dbeta),t(dsig2),t(dalpha))
   if(Arp!=0){
-    gp = function(phi,sigma=sig2)ifelse(length(phi)==1,log(MatArp(phi,length(phi),sigma))
-    ,log(det(MatArp(phi,length(phi),sigma))))
+    gp = function(phi,sigma=sig2)ifelse(length(phi)==1,log(MatArpJ(phi,tt,sigma))
+    ,log(det(MatArpJ(phi,tt,sigma))))
     dgp    = matrix(jacobian(gp,phi))
     dphi   = -1/sig2*(-Dphi(beta,y,x,z,b,p) + Dphiphi(beta,y,x,z,b,p)%*%phi)-1/2*dgp
     derivadas=cbind(t(dbeta),t(dsig2),t(dphi),t(dalpha))
     }
   return(derivadas)
 }
-
-
-
-# #x matriz com todas las covariables por columna
- nlf<-function(x,u,betas){
-   resp<-log(exp(betas[1]+u[1])*exp(-(betas[2]+u[2])*x[,1])+
-               exp(betas[3]+u[3])*exp(-(betas[4]+u[4]+betas[5]*x[,2])*x[,1]))/log(10)
-   return(resp)
- }
-# 
-# exp<- expression(log(exp(bta1+b1)*exp(-(bta2+b2)*xx1)+
-#                              exp(bta3+b3)*exp(-(bta4+b4+bta5*xx2)*xx1)/log(10)))
-# nomes=c("xx1","xx2","xx3","xx4","xx5","xx6","xx7","xx8")
-# nEA=2
-# nEF=8
-# names(x)=nomes
-#  attach(x,warn.conflicts = FALSE)
-#   
-# betass=as.data.frame(t(beta1))
-# names(betass)=paste("bta",1:nEF,sep ="")
-# attach(betass,warn.conflicts = FALSE)
-# 
-# 
-# b=(ub1[(((j-1)*q1)+1) : (j*q1), j])
-# bs=as.data.frame(t(b))
-# names(bs)=paste("b",1:nEA,sep ="")
-# attach(bs,warn.conflicts = FALSE)
-# 
-
-# nlf<-function(exp,){
-#   resp<-log(exp(betas[1]+u[1])*exp(-(betas[2]+u[2])*x[,1])+
-#               exp(betas[3]+u[3])*exp(-(betas[4]+u[4]+betas[5]*x[,2])*x[,1]))/log(10)
-#   return(resp)
-# }
-
-
-# for ( k in 1:dim(x)[2]) {
-# x=as.data.frame(x)
-#   }
-
-#h=derivada de la funcion no lineal respecto de cada b
-funcH<-function(x,cd4,u,betas){
-  ni<-length(x)
-  resp<-matrix(0,ni,4)
-  resp[,1]<- 1/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[1]+u[1]-x*betas[2]-x*u[2])
-  resp[,2]<- -x/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[1]+u[1]-x*betas[2]-x*u[2])
-  resp[,3]<- 1/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4)
-  resp[,4]<- -x/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4)
-  return(resp)
-}
-
-#w=derivada de la funcion no lineal respecto de cada beta
-funcW<-function(x,cd4,u,betas){
-  ni<-length(x)
-  resp<-matrix(0,ni,length(betas))
-  
-  resp[,1]=1/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[1]+u[1]-x*betas[2]-x*u[2])
-  resp[,2]=-x/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[1]+u[1]-x*betas[2]-x*u[2])
-  resp[,3]=1/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4)
-  resp[,4]=-x/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4)
-  resp[,5]=-cd4*x/(exp(betas[1]+u[1]-x*betas[2]-x*u[2])+exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4))/(log(2)+log(5))*exp(betas[3]+u[3]-x*betas[4]-x*u[4]-x*betas[5]*cd4)
-  return(resp)
-}
-
-
-# W=funcW(x1,(ub1[(((j-1)*q1)+1) : (j*q1), j]),beta1) #X
-# H=funcH(x1,(ub1[(((j-1)*q1)+1) : (j*q1), j]),beta1) #Z
-# yt=y1-nlf(x1,beta1,(ub1[(((j-1)*q1)+1) : (j*q1), j]))+W%*%beta1+H%*%(ub1[(((j-1)*q1)+1) : (j*q1), j])
-
-

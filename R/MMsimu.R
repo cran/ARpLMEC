@@ -1,14 +1,15 @@
-MMsimu=function(m,x,z,nj,beta,sigmae,D1,phi,percCensu,cens.type){
+MMsimu=function(m,x,z,tt,nj,beta,sigmae,D,phi,percCensu,cens.type){
  Arp=length(phi)
  rx="NO";rz="NO"
   if(is.null(x)){x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta));rx="yes"}
-  if(is.null(z)){z<-matrix(runif(sum(nj)*dim(D1)[1],-1,1),sum(nj),dim(D1)[1]);rz="yes"}
-  #m=length(nj)
+  if(is.null(z)){z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1]);rz="yes"}
   y<-matrix(0,sum(nj),1)
-  #phi = estphit(pis)
   for(i in 1:m){
-    b<-rmvnorm(1,rep(0,dim(D1)[1]), D1)
-    errorp <- c(arima.sim(n = nj[i], list(order=c(Arp,0,0), ar = phi), sd = sqrt(sigmae)))
+    tt1=tt[(sum(nj[1:i-1])+1) : (sum(nj[1:i]))]
+    n=length(tt1)
+    ome2=MatArp(phi,tt1,sigmae) 
+    errorp=as.vector(rmvnorm(1,rep(0,n), ome2))
+    b<-rmvnorm(1,rep(0,dim(D)[1]), D)
     y[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]=x[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%beta+z[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%t(b)+errorp
   }
     yy=y
@@ -52,7 +53,7 @@ MMsimu=function(m,x,z,nj,beta,sigmae,D1,phi,percCensu,cens.type){
       return(list(cc=cc, y_cc=y_cc, x=x,z=z))
     }else{return(list(cc=cc, y_cc=y_cc, x=x)) }
     }else{return(list(cc=cc, y_cc=y_cc))}
- # return(list(cc=cc, y_cc=y_cc, yy=yy))
+ 
 }
 
 

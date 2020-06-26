@@ -1,28 +1,10 @@
-#setwd("C:/Users/rommy/OneDrive/Escritorio/Rommy/Pacote/Funciones")
-#source('FunGeral.R')
 
-# install.packages("mvtnorm")
-# install.packages("mnormt")
-# install.packages("lmec")
-# install.packages("numDeriv")
-# install.packages("xtable")
-#install.packages("tmvtnorm")
-
-#library(mvtnorm)
-#library(mnormt)
-#library(lmec)
-#library(numDeriv)
-#library(xtable)
-#library(tmvtnorm)
-#library(tcltk)
-#library(MASS)
-
-EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI,LS,MaxIter,ee, Prev,step,isubj,xpre,zpre){
+EMCensArpL=function(cc,y,x,z,tt,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI,LS,MaxIter,ee, Prev,step,isubj,xpre,zpre){
   start.time <- Sys.time()
   pb = tkProgressBar(title = "AR(p)MMEC by EM", min = 0,max = MaxIter, width = 300)
   setTkProgressBar(pb, 0, label=paste("Iter ",0,"/",MaxIter,"     -     ",0,"% done",sep = ""))
  
-   ## the program admit left, righ and intervalar censored
+ 
   GB = GenzBretz(maxpts = 5e4, abseps = 1e-9, releps = 0)
   if(cens.type=="left"){
     LI=rep(-Inf,length(cc))
@@ -48,6 +30,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
   }
   
   
+
   m<-length(nj)[1]
   N<-sum(nj)
   p<-dim(x)[2]
@@ -57,7 +40,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
   
   
   
-  # #valores iniciais
+
   if(is.null(betai)){ betai=solve(t(x)%*%x)%*%t(x)%*%y  }
   if(is.null(sigmaei)){sigmaei= 0.25 }
   if(is.null(D1i)){ D1i=0.1*diag(dim(z)[2]) }
@@ -68,7 +51,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
   
   pis<-pisi
   iD1<- solve(D1)
-  #phi=phii
+
   
   if(Arp!="UNC"){
     phi = estphit(pis)}
@@ -86,7 +69,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
   while(criterio > ee){
     
     count <- count + 1
-   # print(count)
+  
     soma1<- matrix(0,q1,q1)
     soma2<-0
     soma3<- matrix(0,p,p)
@@ -108,30 +91,12 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
     for (j in 1:m ){
       
       cc1=cc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
-      
+      tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
       y1=y[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+      x1=matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
+      z1=matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
       
-      #if(typeModel=="L"){
         
-        x1=matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
-        z1=matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
-        
-      #}
-      
-      # if(typeModel=="NL"){
-      #   
-      #   # W=funW[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
-      #   # H=funH[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
-      #   # yt=y1-funlf[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
-      #   # 
-      #   # 
-      #   # 
-      #   # 
-      #   # x1<-W
-      #   # z1<-H
-      #   # y1<-yt
-      # }
-      # 
       
       LI1<- LI[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
       LS1<- LS[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
@@ -141,7 +106,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
       if(Arp==0){eGama=diag(1,nj[j])
       Gama=eGama*sigmae}
       if(Arp!=0){
-        Gama<- MatArp(pis,nj[j],sigmae) 
+        Gama<- MatArp(pis,tt1,sigmae) 
         eGama<-Gama/sigmae
       }
       
@@ -166,9 +131,6 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
         if(sum(cc1)==nj[j]){
           muc=x1%*%beta1
           Sc<-Psi
-          #aux<- MomemNT(muc,Sc,y1)
-          #uy<-aux$Ey
-          #uyy<- aux$Eyy
           aux<- mtmvnorm(mean=c(muc), sigma=Sc, lower=LI1, upper=LS1)
           uy<- aux$tmean
           uyy<- aux$tvar+uy%*%t(uy)
@@ -184,23 +146,18 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
           
           muc=x1[cc1==1,]%*%beta1+Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%(y1[cc1==0]-x1[cc1==0,]%*%beta1)
           Sc <-Psi[cc1==1,cc1==1]-Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%Psi[cc1==0,cc1==1]
-          #aux <-MomemNT(muc,Sc,y1[cc1==1])
-          aux<- mtmvnorm(mean=c(muc), sigma=Sc, lower=LI1[cc1==1], upper=LS1[cc1==1])
+           aux<- mtmvnorm(mean=c(muc), sigma=Sc, lower=LI1[cc1==1], upper=LS1[cc1==1])
           uy <-matrix(y1,nj[j],1)
-          #uy[cc1==1]<-aux$Ey
           uy[cc1==1]<- aux$tmean
           uyy<-matrix(0,nj[j],nj[j])
-          #uyy[cc1==1,cc1==1]<-aux$Vary
-          uyy[cc1==1,cc1==1]<- aux$tvar
+           uyy[cc1==1,cc1==1]<- aux$tvar
           uyy<- uyy+uy%*%t(uy)
           ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
           ver[j,]<- dmvnorm(c(y1[cc1==0]),mean=c(gammai[cc1==0]),sigma=as.matrix(Psi[cc1==0,cc1==0]))*(pmvnorm(LI1[cc1==1],LS1[cc1==1],mean=as.vector(muc),sigma=Sc,algorithm = GB))[1]
           
-          
-          #dmnorm(y1[cc1==0],gammai[cc1==0],Psi[cc1==0,cc1==0])*pmnorm(y1[cc1==1],c(muc),Sc)
-          
+            
         }
         
       }
@@ -222,7 +179,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
       xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1
       
       tetaMI=c(beta1,sigmae,phi)
-      si<-Jt(tetaMI,uy,x1,z1,ub,ubb,p,Arp,D1)
+      si<-Jt(tetaMI,uy,x1,z1,tt1,ub,ubb,p,Arp,D1)
       MI <- MI + t(si)%*%si
       
     }
@@ -234,18 +191,16 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
     iD1<- solve(D1) 
     teta1 <- c(beta1,sigmae)
     if(Arp!=0){
-      pis <- optim(pis, method = "L-BFGS-B", FCiArp, lower =rep(-.999,Arp), upper =rep(.999,Arp), beta1=beta1,sigmae=sigmae, ubi=ubi,ubbi=ubbi,uybi=uybi,uyyi=uyyi,uyi=uyi,x=x,z=z,nj=nj,hessian=TRUE)$par
+      pis <- optim(pis, method = "L-BFGS-B", FCiArp, lower =rep(-.999,Arp), upper =rep(.999,Arp), beta1=beta1,sigmae=sigmae, ubi=ubi,ubbi=ubbi,uybi=uybi,uyyi=uyyi,uyi=uyi,x=x,z=z,tt=tt,nj=nj,hessian=TRUE)$par
       phi=estphit(pis) 
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)], phi)  }
     
-    #print(teta1)
+   
     logver <- sum(log(ver))
-    #print(logver)
+
     varbeta<-solve(soma5)
     
-    ## if (count>1){
-    ##   criterio <- (abs(logver1-logver))
-    ## }
+   
     
     if (count>=1){
       criterio <- sqrt((teta1/teta-1)%*%(teta1/teta-1))
@@ -278,7 +233,7 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
   { contt=0
     Predicao<- matrix(0,length(isubj),1+step)
     for (j in isubj ){
-      #
+     
       contt=contt+1
       IndPred=c(rep(0,nj[j]),rep(1,step))
       xobs=x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ]
@@ -291,17 +246,17 @@ EMCensArpL=function(cc,y,x,z,nj,Arp, betai,sigmaei,D1i,pisi,cens.type="left", LI
       
       gammai = xobs%*%beta1
       yobs=uyi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),j]
+      tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
       
       if(Arp==0){ Gama=diag(1,nj[j]+step)*sigmae}
-      if(Arp!=0){Gama<- MatArp(pis,nj[j]+step,sigmae)}
+      if(Arp!=0){ tt1=c(tt1, tt1[nj[j]]+seq(1:step))
+        Gama<- MatArp(pis,tt1,sigmae)} 
       PsiPred<-(Gama+(zobspre)%*%t(D1)%*%t(zobspre))
       Aux1Pred <- xprei%*%beta1
       Aux2Pred <- PsiPred[IndPred==1,IndPred==0]%*%solve(PsiPred[IndPred==0,IndPred==0])
       Aux3Pred <- (yobs-gammai)
       
-      # Predicao[((step*contt-(step-1)) : (step*j)),1] <- j               
-      #  Predicao[((step*contt-(step-1)) : (step*j)),2] <- Aux1Pred + Aux2Pred%*%Aux3Pred               
-       Predicao[contt,1] <- j               
+         Predicao[contt,1] <- j               
         Predicao[contt,2:(step+1)] <- Aux1Pred + Aux2Pred%*%Aux3Pred               
       
     }

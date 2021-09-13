@@ -1,4 +1,4 @@
-#' @title Autoregressive Censored Mixed Effects Models
+#' @title Censored Mixed-Effects Models with Autoregressive Correlation Structure and DEC for Normal and t-Student Errors
 #' @import mvtnorm
 #' @import mnormt
 #' @import lmec
@@ -6,35 +6,36 @@
 #' @import tmvtnorm
 #' @import tcltk
 #' @import MASS
+#' @import MomTrunc
 #' @import stats
+#' @import TTmoment
 #' @description This functino fits left, right or intervalar censored mixed-effects linear model, with autoregressive errors of order \code{p}, using the EM algorithm. It returns estimates, standard errors and prediction of future observations.
 #' @param y Vector \code{1 x n} of censored responses, where \code{n} is the sum of the number of observations of each individual
 #' @param x Design matrix of the fixed effects of order \code{n x s}, corresponding to vector of fixed effects.
 #' @param z Design matrix of the random effects of order\code{n x b}, corresponding to vector of random effects.
 #' @param cc Vector of censoring indicators of length \code{n}, where \code{n} is the total of observations. For each observation: \code{0} if non-censored, \code{1} if censored.
 #' @param nj Vector \code{1 x m} with the number of observations for each subject,  where \code{m} is the total number of individuals.
-#' @param tt Vector \code{1 x n} with the time the measurements were made, where \code{n} is the total number of measurements for all individuals.
-#' @param Arp Order of the autoregressive process. Must be a positive integer value. To consider a model uncorrelated use \code{UNC}.
-#' @param beta0 Initial values for the vector of fixed effects. If it is not indicated it will be provided automatically. Default is \code{NULL}
-#' @param sigma0 Initial values for sigma. If it is not indicated it will be provided automatically. Default is \code{NULL}
-#' @param D0 Initial values for the  covariance matrix  for the random effects. If it is not indicated it will be provided automatically. Default is \code{NULL}
-#' @param pi0 Initial values for the vector for autoregressive coefficients pi's. If it is not indicated it will be provided automatically. Default is \code{NULL}
-#' @param typeModel \code{L} for linear model and \code{NL} for nolinear model. Default is \code{L}
+#' @param tt Vector \code{1 x n} with the time the measurements were made, where \code{n} is the total number of measurements for all individuals. Default it's considered regular times.
+#' @param struc \code{UNC},\code{ARp},\code{DEC},\code{SYM} or \code{DEC(AR)} for uncorrelated ,autoregressive, DEC(phi1,phi2), DEC(phi1,phi2=1), DEC(DEC(phi1,phi2=1)) structure, respectively
+#' @param order  Order of the autoregressive process. Must be a positive integer value.
+#' @param initial List with the initial values in the next orden: betas,sigma2,alphas,phi and nu. If it is not indicated it will be provided automatically. Default is \code{NULL}
+#' @param nu.fixed Logical. Should estimate the parameter "nu" for the t-student distribution?. If is False indicates the value in the list of initial values. Default is \code{FALSE}
+#' @param typeModel \code{Normal} for Normal distribution and \code{Student} for Student distribution. Default is \code{Normal}
 #' @param cens.type \code{left} for left censoring, \code{right} for right censoring and \code{interval} for intervalar censoring. Default is \code{left}
 #' @param LI Vector censoring lower limit indicator of length \code{n}. For each observation: \code{0} if non-censored, \code{-inf} if censored. It is only indicated for when \code{cens.type} is \code{both}. Default is \code{NULL}
 #' @param LS Vector censoring upper limit indicator of length \code{n}. For each observation: \code{0} if non-censored, \code{inf} if censored.It is only indicated for when \code{cens.type} is \code{both}. Default is \code{NULL}
 #' @param MaxIter The maximum number of iterations of the EM algorithm. Default is \code{200}
 #' @param error The convergence maximum error. Default is \code{0.0001}
-#' @param Prev Indicator of the prediction process. Default is \code{FALSE}
+#' @param Prev Indicator of the prediction process. Available at the moment only for the \code{typeModel=normal} case.  Default is \code{FALSE}
 #' @param isubj Vector indicator of subject included in the prediction process. Default is \code{NULL}
 #' @param step Number of steps for prediction. Default is \code{NULL}
 #' @param xpre Design matrix of the fixed effects to be predicted. Default is \code{NULL}.
 #' @param zpre Design matrix of the random effects to be predicted. Default is \code{NULL}.
 #' @return returns list of class \dQuote{ARpMMEC}:
-#' \item{FixEffect}{Data frame with: estimate, standars erros and confidence intervals of the fixed effects.}
-#' \item{Sigma2}{Data frame with: estimate, standars erros and confidence intervals  of the variance of the white noise process.}
-#' \item{Phi}{Data frame with: estimate, standars erros and confidence intervals  of the autoregressive parameters.}
-#' \item{RnEffect}{Data frame with: estimate, standars erros and confidence intervals  of the random effects.}
+#' \item{FixEffect}{Data frame with: estimate, standar errors and confidence intervals of the fixed effects.}
+#' \item{Sigma2}{Data frame with: estimate, standar errors and confidence intervals  of the variance of the white noise process.}
+#' \item{Phi}{Data frame with: estimate, standar errors and confidence intervals  of the autoregressive parameters.}
+#' \item{RnEffect}{Data frame with: estimate, standar errors and confidence intervals  of the random effects.}
 #' \item{Est}{Vector of parameters estimate (fixed Effects, sigma2, phi, random effects).}
 #' \item{SE}{Vector of the standard errors of (fixed Effects, sigma2, phi, random effects).}
 #' \item{loglik}{Log-likelihood value.}
@@ -45,33 +46,42 @@
 #' \item{MI}{Information matrix}
 #' \item{Prev}{Predicted values (if xpre and zpre is not \code{NULL}).}
 #' \item{time}{Processing time.}
+#' @references Olivari, R. C., Garay, A. M., Lachos, V. H., & Matos, L. A. (2021). Mixed-effects 
+#' models for censored data with autoregressive errors. Journal of Biopharmaceutical Statistics, 31(3), 273-294.
+#' \doi{10.1080/10543406.2020.1852246}
 #' @examples
 #' \dontrun{
-#'  p.cens   = 0.1
-#'  m           = 50
-#'  D = matrix(c(0.049,0.001,0.001,0.002),2,2)
-#'  sigma2 = 0.30
-#'  phi    = c(0.48,-0.2)
-#'  beta   = c(1,2,1)
-#'  nj=rep(6,50)
-#'  tt=rep(seq(1:6),50)
-#'  x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
-#'  z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
-#'  data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
-#'  attach(data, warn.conflicts = F)
-#'  Arp    = 2
+#'p.cens   = 0.1
+#'m           = 50
+#'D = matrix(c(0.049,0.001,0.001,0.002),2,2)
+#'sigma2 = 0.30
+#'phi    = c(0.48,0.5)
+#'beta   = c(1,2,1)
+#'nj=rep(c(6,5,6,8,5,7,8,9,10,12),5)
+#'tt=rep(4,sum(nj))
+#'x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
+#'z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
+#'data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
+#'attach(data, warn.conflicts = F)
+#'Arp    = 2
 #'
-#'  teste1=ARpMMEC.est(y_cc,x,z,tt,cc,nj,Arp,MaxIter = 10)
+#'teste1=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Normal",MaxIter = 2)
+#'teste2=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Student",MaxIter = 2)
 #'
-#'  xx=matrix(runif(6*length(beta),-1,1),6,length(beta))
-#'  zz=matrix(runif(6*dim(D)[1],-1,1),6,dim(D)[1])
-#'  isubj=c(1,4,5)
-#'  teste2=ARpMMEC.est(y_cc,x,z,tt,cc,nj,Arp,MaxIter=10,Prev=TRUE,step=2,isubj=isubj,xpre=xx,zpre=zz)
-#'  teste2$Prev
+#'xx=matrix(runif(6*length(beta),-1,1),6,length(beta))
+#'zz=matrix(runif(6*dim(D)[1],-1,1),6,dim(D)[1])
+#'isubj=c(1,4,5)
+#'teste3=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Normal",
+#'        MaxIter = 2,Prev=TRUE,step=2,isubj=isubj,xpre=xx,zpre=zz)
+#'teste3$Prev
+#'
+#'
 #' }
+#' 
+#' 
 #' @export
-ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=NULL,
-                 typeModel="L",cens.type="left", LI=NULL,LS=NULL, MaxIter=200,
+ARpMMEC.est=function(y,x,z,tt,cc,nj,struc="UNC",order=1, initial=NULL,nu.fixed=TRUE,
+                 typeModel="Normal",cens.type="left", LI=NULL,LS=NULL, MaxIter=200,
                  error=0.0001, Prev=FALSE,step=NULL,isubj=NULL,xpre=NULL,zpre=NULL)
   {
 
@@ -91,7 +101,7 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
   if(length(y)!=nrow(as.matrix(z)))     stop("x does not have the same number of lines than y.")
   if(length(y)!=sum(nj))                stop("not compatible sizes between the response y and the repetited measures nj")
   if(length(y)==0)                      stop("The parameter y must be provided.")
-  if(length(y)!=length(tt))            stop("not compatible sizes between the response y and the vector time tt")
+  if(length(y)!=length(tt))             stop("not compatible sizes between the response y and the vector time tt")
 
 
   if(!is.numeric(x))                    stop("x must be a numeric matrix. Check documentation!")
@@ -120,33 +130,34 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
   if(length(nj)==0)                     stop("The parameter nj must be provided.")
 
 
-  if(!is.numeric(Arp)&Arp!="UNC")       stop("Arp must be UNC or a positive number. Check documentation!")
-  if(length(Arp)!=1)                    stop("Arp must be a value.")
-  if(is.numeric(Arp))
-   { if(Arp!=round(Arp)|Arp<=0)         stop("Arp must be UNC or a positive integer value.")}
+  if(struc!="DEC"&struc!="DEC(AR)"&struc!="SYM"&struc!="ARp"&struc!="UNC") stop("Struc must be UNC, DEC, DEC(AR), SYM or ARp. Check documentation!")
+  if(!is.numeric(order)            )       stop("Orde must be a number. Check documentation!")
+  if(length(order)!=1)                    stop("Order must be a value.")
+  if(is.numeric(order))
+   { if(order!=round(order)|order<=0)         stop("Order must be a positive integer value.")}
+ 
+if(!is.null(initial))
+{  if(!is.null(initial$betas))
+    {if(!is.numeric(initial$betas))             stop("betas must be a numeric vector. Check documentation!")
+     if(!is.vector(initial$betas))              stop("betas must be a vector. Check documentation!")
+     if(length(initial$betas)!=ncol(x))         stop("not compatible sizes between the matrix x and parameter betas.")}
+  if(!is.null(initial$sigma2))
+    {if(!is.numeric(initial$sigma2))           stop("sigma2 must be a scalar.")
+     if(length(initial$sigma2)>1)              stop("sigma2 must be a scalar.")}
+  if(!is.null(initial$alphas))
+    {if(!is.matrix(initial$alphas))                stop("alphas must be a matrix.")
+    if(initial$alphas[upper.tri(initial$alphas)]!=initial$alphas[lower.tri(initial$alphas)])stop("alphas must be a simetric matrix.")
+    if(dim(initial$alphas)[2]!=ncol(z))            stop("not compatible sizes between the matrix z and parameter alphas.")}
+  if(!is.null(initial$phi))
+    {if(!is.numeric(initial$phi))              stop("phi must be a numeric vector. Check documentation!")
+     if(length(initial$phi)!=order)              stop("not compatible sizes between the value Arp and parameter phi. Check documentation!")}
+
+}
+
+  if(typeModel!='Normal'& typeModel!='Student')   stop('typeModel must be Normal or Student. Check documentation!')
 
 
-  if(!is.null(beta0))
-    {if(!is.numeric(beta0))             stop("beta0 must be a numeric vector. Check documentation!")
-     if(!is.vector(beta0))              stop("beta0 must be a vector. Check documentation!")
-     if(length(beta0)!=ncol(x))         stop("not compatible sizes between the matrix x and parameter beta0.")}
-  if(!is.null(sigma0))
-    {if(!is.numeric(sigma0))           stop("sigma0 must be a scalar.")
-     if(length(sigma0)>1)              stop("beta0 must be a scalar.")}
-  if(!is.null(D0))
-    {if(!is.matrix(D0))                stop("D0 must be a matrix.")
-    if(D0[upper.tri(D0)]==D0[lower.tri(D0)])stop("D0 must be a simetric matrix.")
-    if(dim(D0)[2]!=ncol(z))            stop("not compatible sizes between the matrix z and parameter D0.")}
-  if(!is.null(pi0))
-    {if(!is.numeric(pi0))              stop("pi0 must be a numeric vector. Check documentation!")
-     if(length(pi0)!=Arp)              stop("not compatible sizes between the value Arp and parameter pi0. Check documentation!")}
-
-
-
-  if(typeModel!='L'& typeModel!='NL')   stop('typeModel must be L or NL. Check documentation!')
-
-
-  if(cens.type!="left" & cens.type!="right" & cens.type!="interval")stop('cens.type must be left, right or i-*9nterval. Check documentation!')
+  if(cens.type!="left" & cens.type!="right" & cens.type!="interval")stop('cens.type must be left, right or interval. Check documentation!')
 
 
   if(cens.type=="interval"&is.null(LI))    stop("The parameter LI must be provided.. Check documentation!")
@@ -173,7 +184,7 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
     if(is.null(step)|is.null(xpre)|is.null(zpre)|is.null(isubj)) stop("step, isubj, xpre, zpre needs to be provided. Check documentation!")
     if (!is.numeric(isubj))             stop("isubj must be a numeric vector. Check documentation!")
     if (!is.numeric(step))              stop("step must be a positive number. Check documentation!")
-    if (step <0)                         stop("step parameter must be positive number")
+    if (step <0)                        stop("step parameter must be positive number")
     if (length(step) > 1)               stop("step parameter must be a scalar")
     if (ncol(xpre)!=ncol(as.matrix(x))) stop("xpre must have the same number of columns than x")
     if (sum(is.na(xpre))>0)             stop("There are some NA values in xpre")
@@ -184,19 +195,47 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
     if(nrow(xpre)!=length(isubj)*step)  stop("not compatible sizes between xpre and isubj. Check documentation!")
     if(nrow(zpre)!=length(isubj)*step)  stop("not compatible sizes between zpre and isubj. Check documentation!")
 
-     } 
+  }
+  
+    
 
- if(typeModel=="L"){
-   out<-EMCensArpL(cc=cc,y=y,x=x,z=z,tt=tt,nj=nj, Arp=Arp, betai=beta0,sigmaei=sigma0,D1i=D0,pisi=pi0,cens.type=cens.type, LI=LI,LS=LS,MaxIter=MaxIter,ee=error,
+ if(typeModel=="Normal"){
+   if(struc=="ARp"){
+    out<-EMCensArpN(cc=cc,y=y,x=x,z=z,tt=tt,nj=nj, Arp=order, initial=initial, cens.type=cens.type, LI=LI,LS=LS,MaxIter=MaxIter,ee=error,
         Prev=Prev,step=step,isubj=isubj ,xpre=xpre,zpre=zpre)}
+   if(struc=="UNC"){
+     out<-EMCensArpN(cc=cc,y=y,x=x,z=z,tt=tt,nj=nj, Arp=struc, initial=initial, cens.type=cens.type, LI=LI,LS=LS,MaxIter=MaxIter,ee=error,
+                     Prev=Prev,step=step,isubj=isubj ,xpre=xpre,zpre=zpre)}
+   if(struc=="DEC"|struc=="DEC(AR)"|struc=="SYM"){
+     out<-EMCensDECN(cc=cc,y=y,x=x,z=z,tt=tt,nj=nj, struc=struc, initial=initial, cens.type=cens.type, LI=LI,LS=LS,MaxIter=MaxIter,ee=error,
+                     Prev=Prev,step=step,isubj=isubj ,xpre=xpre,zpre=zpre)}
+ }
+  
+  
+  
+  if(typeModel=="Student"){
+    if(struc=="ARp"){
+      out<-EMCensArpT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,Arp=order,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
+                      iter.max=MaxIter,precision=error)}
+    if(struc=="UNC"){
+      out<-EMCensArpT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,Arp=struc,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
+                      iter.max=MaxIter,precision=error)}
+    if(struc=="DEC"|struc=="DEC(AR)"|struc=="SYM"){
+      out<-EMCensDECT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,struc=struc,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
+                      iter.max=MaxIter,precision=error)}
+    
+    }
 
-
+  if(struc=="ARp")  
+{
   cat('\n')
   cat('---------------------------------------------------\n')
   cat('Autoregressive censored mixed-effects models \n')
   cat('---------------------------------------------------\n')
   cat('\n')
-  cat("Autoregressive order =",Arp)
+  cat("Autoregressive order =",order)
+  cat('\n')
+  cat("Distribution =",typeModel)
   cat('\n')
   cat("Subjects =",length(nj),";",'Observations =',sum(nj))
   cat('\n')
@@ -215,7 +254,7 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
   print(out$tableS)
   cat('\n')
   cat('\n')
-  if(Arp!="UNC"){
+  if(order!="UNC"){
   cat('- Autoregressives parameters\n')
   cat('\n')
   print(out$tableP)
@@ -230,9 +269,9 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
   cat('Model selection criteria\n')
   cat('------------------------\n')
   cat('\n')
-  critFin <- c(out$loglik, out$AIC, out$BIC, out$AICcorr)
+  critFin <- c(out$loglik, out$AIC, out$BIC)
   critFin <- round(t(as.matrix(critFin)),digits=3)
-  dimnames(critFin) <- list(c("Value"),c("Loglik", "AIC", "BIC","AICc"))
+  dimnames(critFin) <- list(c("Value"),c("Loglik", "AIC", "BIC"))
   print(critFin)
   cat('\n')
   cat('-------\n')
@@ -244,13 +283,74 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj, Arp=1, beta0=NULL,sigma0=NULL,D0=NULL,pi0=N
   cat('Iterations =',out$iter,"/",MaxIter)
   cat('\n')
   cat("Processing time =",out$time,units(out$time))
-
+  cat('\n')
+  }
+  
+  if(struc!="ARp")  
+  {
+    cat('\n')
+    cat('---------------------------------------------------\n')
+    cat('DEC censored mixed-effects models \n')
+    cat('---------------------------------------------------\n')
+    cat('\n')
+    cat("Case =",struc)
+    cat('\n')
+    cat("Distribution =",typeModel)
+    cat('\n')
+    cat("Subjects =",length(nj),";",'Observations =',sum(nj))
+    cat('\n')
+    cat('\n')
+    cat('-----------\n')
+    cat('Estimates\n')
+    cat('-----------\n')
+    cat('\n')
+    cat('- Fixed effects \n')
+    cat('\n')
+    print(out$tableB)
+    cat('\n')
+    cat('\n')
+    cat('- Sigma^2 \n')
+    cat('\n')
+    print(out$tableS)
+    cat('\n')
+    cat('\n')
+      cat('- Autoregressives parameters\n')
+      cat('\n')
+      print(out$tableP)
+      cat('\n')
+      cat('\n')
+    cat('- Random effects \n')
+    cat('\n')
+    print(out$tableA)
+    cat('\n')
+    cat('\n')
+    cat('------------------------\n')
+    cat('Model selection criteria\n')
+    cat('------------------------\n')
+    cat('\n')
+    critFin <- c(out$loglik, out$AIC, out$BIC)
+    critFin <- round(t(as.matrix(critFin)),digits=3)
+    dimnames(critFin) <- list(c("Value"),c("Loglik", "AIC", "BIC"))
+    print(critFin)
+    cat('\n')
+    cat('-------\n')
+    cat('Details\n')
+    cat('-------\n')
+    cat('\n')
+    cat("Convergence reached? =",(out$iter < MaxIter))
+    cat('\n')
+    cat('Iterations =',out$iter,"/",MaxIter)
+    cat('\n')
+    cat("Processing time =",out$time,units(out$time))
+    cat('\n')
+  }
+ 
   obj.out <- list(FixEffect=out$tableB, Sigma2=out$tableS, Phi=out$tableP,RandEffect=out$tableA,
                   Est=c(out$beta1, sigma2=out$sigmae, phi=out$phi, RnEffect=out$dd), SE=out$SE,
                   loglik=out$loglik, AIC=out$AIC, BIC=out$BIC, AICc=out$AICcorr, iter=out$iter,
                    MI=out$MI, Prev=out$Prev, time=out$time)
 
-  class(obj.out)  =  "ARpMMCE"
+  class(obj.out)  =  "ARpMMEC"
   return(obj.out)
 
 }

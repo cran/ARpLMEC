@@ -2,7 +2,7 @@
 % Please edit documentation in R/ARpMMEC.est.R
 \name{ARpMMEC.est}
 \alias{ARpMMEC.est}
-\title{Autoregressive Censored Mixed Effects Models}
+\title{Censored Mixed-Effects Models with Autoregressive Correlation Structure and DEC for Normal and t-Student Errors}
 \usage{
 ARpMMEC.est(
   y,
@@ -11,12 +11,11 @@ ARpMMEC.est(
   tt,
   cc,
   nj,
-  Arp = 1,
-  beta0 = NULL,
-  sigma0 = NULL,
-  D0 = NULL,
-  pi0 = NULL,
-  typeModel = "L",
+  struc = "UNC",
+  order = 1,
+  initial = NULL,
+  nu.fixed = TRUE,
+  typeModel = "Normal",
   cens.type = "left",
   LI = NULL,
   LS = NULL,
@@ -36,23 +35,21 @@ ARpMMEC.est(
 
 \item{z}{Design matrix of the random effects of order\code{n x b}, corresponding to vector of random effects.}
 
-\item{tt}{Vector \code{1 x n} with the time the measurements were made, where \code{n} is the total number of measurements for all individuals.}
+\item{tt}{Vector \code{1 x n} with the time the measurements were made, where \code{n} is the total number of measurements for all individuals. Default it's considered regular times.}
 
 \item{cc}{Vector of censoring indicators of length \code{n}, where \code{n} is the total of observations. For each observation: \code{0} if non-censored, \code{1} if censored.}
 
 \item{nj}{Vector \code{1 x m} with the number of observations for each subject,  where \code{m} is the total number of individuals.}
 
-\item{Arp}{Order of the autoregressive process. Must be a positive integer value. To consider a model uncorrelated use \code{UNC}.}
+\item{struc}{\code{UNC},\code{ARp},\code{DEC},\code{SYM} or \code{DEC(AR)} for uncorrelated ,autoregressive, DEC(phi1,phi2), DEC(phi1,phi2=1), DEC(DEC(phi1,phi2=1)) structure, respectively}
 
-\item{beta0}{Initial values for the vector of fixed effects. If it is not indicated it will be provided automatically. Default is \code{NULL}}
+\item{order}{Order of the autoregressive process. Must be a positive integer value.}
 
-\item{sigma0}{Initial values for sigma. If it is not indicated it will be provided automatically. Default is \code{NULL}}
+\item{initial}{List with the initial values in the next orden: betas,sigma2,alphas,phi and nu. If it is not indicated it will be provided automatically. Default is \code{NULL}}
 
-\item{D0}{Initial values for the  covariance matrix  for the random effects. If it is not indicated it will be provided automatically. Default is \code{NULL}}
+\item{nu.fixed}{Logical. Should estimate the parameter "nu" for the t-student distribution?. If is False indicates the value in the list of initial values. Default is \code{FALSE}}
 
-\item{pi0}{Initial values for the vector for autoregressive coefficients pi's. If it is not indicated it will be provided automatically. Default is \code{NULL}}
-
-\item{typeModel}{\code{L} for linear model and \code{NL} for nolinear model. Default is \code{L}}
+\item{typeModel}{\code{Normal} for Normal distribution and \code{Student} for Student distribution. Default is \code{Normal}}
 
 \item{cens.type}{\code{left} for left censoring, \code{right} for right censoring and \code{interval} for intervalar censoring. Default is \code{left}}
 
@@ -64,7 +61,7 @@ ARpMMEC.est(
 
 \item{error}{The convergence maximum error. Default is \code{0.0001}}
 
-\item{Prev}{Indicator of the prediction process. Default is \code{FALSE}}
+\item{Prev}{Indicator of the prediction process. Available at the moment only for the \code{typeModel=normal} case.  Default is \code{FALSE}}
 
 \item{step}{Number of steps for prediction. Default is \code{NULL}}
 
@@ -76,10 +73,10 @@ ARpMMEC.est(
 }
 \value{
 returns list of class \dQuote{ARpMMEC}:
-\item{FixEffect}{Data frame with: estimate, standars erros and confidence intervals of the fixed effects.}
-\item{Sigma2}{Data frame with: estimate, standars erros and confidence intervals  of the variance of the white noise process.}
-\item{Phi}{Data frame with: estimate, standars erros and confidence intervals  of the autoregressive parameters.}
-\item{RnEffect}{Data frame with: estimate, standars erros and confidence intervals  of the random effects.}
+\item{FixEffect}{Data frame with: estimate, standar errors and confidence intervals of the fixed effects.}
+\item{Sigma2}{Data frame with: estimate, standar errors and confidence intervals  of the variance of the white noise process.}
+\item{Phi}{Data frame with: estimate, standar errors and confidence intervals  of the autoregressive parameters.}
+\item{RnEffect}{Data frame with: estimate, standar errors and confidence intervals  of the random effects.}
 \item{Est}{Vector of parameters estimate (fixed Effects, sigma2, phi, random effects).}
 \item{SE}{Vector of the standard errors of (fixed Effects, sigma2, phi, random effects).}
 \item{loglik}{Log-likelihood value.}
@@ -96,26 +93,37 @@ This functino fits left, right or intervalar censored mixed-effects linear model
 }
 \examples{
 \dontrun{
- p.cens   = 0.1
- m           = 50
- D = matrix(c(0.049,0.001,0.001,0.002),2,2)
- sigma2 = 0.30
- phi    = c(0.48,-0.2)
- beta   = c(1,2,1)
- nj=rep(6,50)
- tt=rep(seq(1:6),50)
- x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
- z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
- data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
- attach(data, warn.conflicts = F)
- Arp    = 2
+p.cens   = 0.1
+m           = 50
+D = matrix(c(0.049,0.001,0.001,0.002),2,2)
+sigma2 = 0.30
+phi    = c(0.48,0.5)
+beta   = c(1,2,1)
+nj=rep(c(6,5,6,8,5,7,8,9,10,12),5)
+tt=rep(4,sum(nj))
+x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
+z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
+data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
+attach(data, warn.conflicts = F)
+Arp    = 2
 
- teste1=ARpMMEC.est(y_cc,x,z,tt,cc,nj,Arp,MaxIter = 10)
+teste1=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Normal",MaxIter = 2)
+teste2=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Student",MaxIter = 2)
 
- xx=matrix(runif(6*length(beta),-1,1),6,length(beta))
- zz=matrix(runif(6*dim(D)[1],-1,1),6,dim(D)[1])
- isubj=c(1,4,5)
- teste2=ARpMMEC.est(y_cc,x,z,tt,cc,nj,Arp,MaxIter=10,Prev=TRUE,step=2,isubj=isubj,xpre=xx,zpre=zz)
- teste2$Prev
+xx=matrix(runif(6*length(beta),-1,1),6,length(beta))
+zz=matrix(runif(6*dim(D)[1],-1,1),6,dim(D)[1])
+isubj=c(1,4,5)
+teste3=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Normal",
+       MaxIter = 2,Prev=TRUE,step=2,isubj=isubj,xpre=xx,zpre=zz)
+teste3$Prev
+
+
 }
+
+
+}
+\references{
+Olivari, R. C., Garay, A. M., Lachos, V. H., & Matos, L. A. (2021). Mixed-effects 
+models for censored data with autoregressive errors. Journal of Biopharmaceutical Statistics, 31(3), 273-294.
+\doi{10.1080/10543406.2020.1852246}
 }

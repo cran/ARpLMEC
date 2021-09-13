@@ -2,7 +2,7 @@
 % Please edit documentation in R/ARpMMEC.sim.R
 \name{ARpMMEC.sim}
 \alias{ARpMMEC.sim}
-\title{Generating Censored Autoregressive Dataset with Mixed Effects.}
+\title{Generating Censored Autoregressive Dataset with Mixed Effects, for normal distribution.}
 \usage{
 ARpMMEC.sim(
   m,

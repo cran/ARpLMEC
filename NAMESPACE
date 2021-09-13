@@ -3,6 +3,8 @@
 export(ARpMMEC.est)
 export(ARpMMEC.sim)
 import(MASS)
+import(MomTrunc)
+import(TTmoment)
 import(lmec)
 import(mnormt)
 import(mvtnorm)

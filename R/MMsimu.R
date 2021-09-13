@@ -7,7 +7,7 @@ MMsimu=function(m,x,z,tt,nj,beta,sigmae,D,phi,percCensu,cens.type){
   for(i in 1:m){
     tt1=tt[(sum(nj[1:i-1])+1) : (sum(nj[1:i]))]
     n=length(tt1)
-    ome2=MatArp(phi,tt1,sigmae) 
+    ome2=MatArp(phi,tt1,sigmae)
     errorp=as.vector(rmvnorm(1,rep(0,n), ome2))
     b<-rmvnorm(1,rep(0,dim(D)[1]), D)
     y[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]=x[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%beta+z[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%t(b)+errorp

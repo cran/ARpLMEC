@@ -1,4 +1,4 @@
-#' @title Generating Censored Autoregressive Dataset with Mixed Effects.
+#' @title Generating Censored Autoregressive Dataset with Mixed Effects, for normal distribution.
 #' @import mvtnorm
 #' @import mnormt
 #' @import numDeriv
@@ -81,7 +81,7 @@ ARpMMEC.sim=function(m,x=NULL,z=NULL,tt=NULL,nj,beta,sigmae,D,phi,p.cens= 0,cens
  
     if(cens.type!="left" & cens.type!="right" & cens.type!="interval")stop('cens.type must be left, right or interval. Check documentation!')
   
-   
+  
  
   if(p.cens>1| p.cens<0)       stop("the percCensu must be between 0 and 1 . Check documentation!")
 

@@ -194,9 +194,9 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
           
           u <- as.numeric(aux1U/aux2U)
           
-          auxy <- MomTrunc::meanvarTMD(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 2))*SIGMA),nu=(nu+2),dist = "t")
+          auxy <-relliptical::mvtelliptical(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 2))*SIGMA),dist = "t",nu=(nu+2))
           
-          uy <- u*auxy$mean
+          uy <- u*auxy$EY
           uyy <- u*auxy$EYY
           
           ub <- (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(uy - u*muii)
@@ -204,19 +204,19 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
           uyb <- (uyy - uy%*%t(muii))%*%(invGama%*%(z1*(1/sigmae))%*%Lambda1)
           
           
-          auxb <- MomTrunc::onlymeanTMD(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix(SIGMA),nu=(nu),dist = "t")
-          yh <- auxb
+          auxb <- relliptical::mvtelliptical(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix(SIGMA),dist = "t",nu=(nu))
+          yh <- auxb$EY
           best <- (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(yh - muii)
            
           cp <- (((nu+nj[j])/nu)^2)*((gamma((nu+nj[j])/2)*gamma((nu+4)/2))/(gamma(nu/2)*gamma((nu+nj[j]+4)/2)))
           
-          auxw <- MomTrunc::meanvarTMD(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 4))*SIGMA),nu=(nu+4),dist = "t")
+          auxw <- relliptical::mvtelliptical(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 4))*SIGMA),dist = "t",nu=(nu+4))
           
            auxEU <- MomTrunc::pmvnormt(lower = as.vector(LL1),upper=as.vector(LU1), mean = as.vector(muii),sigma = as.matrix((nu/(nu + 4))*SIGMA),nu=(nu+4))
           
           
           Eu2yy <- cp*(auxEU/aux2U)*auxw$EYY
-          Eu2y <- cp*(auxEU/aux2U)*auxw$mean
+          Eu2y <- cp*(auxEU/aux2U)*auxw$EY
           Eu2 <- cp*(auxEU/aux2U)
           
           E2 <- Eu2yy - Eu2y%*%t(muii) - muii%*%t(Eu2y) + Eu2*(muii)%*%t(muii)
@@ -245,8 +245,8 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
           u <- as.numeric(aux1U/aux2U)*(1/auxQy0)
           Sc0til=round((Sc0til+t(Sc0til))/2,3)
           
-          auxy <- MomTrunc::meanvarTMD(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0til),nu=(nu + 2 + length(cc1[cc1==0])),dist = "t")
-          w1aux <- auxy$mean
+          auxy <- relliptical::mvtelliptical(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0til),dist = "t",nu=(nu + 2 + length(cc1[cc1==0])))
+          w1aux <- auxy$EY
           w2aux <- auxy$EYY
           
           uy <- matrix(y1,nj[j],1)*u
@@ -262,9 +262,9 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
           ubb <- Lambda1 + (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(uyy - uy%*%t(muii) - muii%*%t(uy) + u*muii%*%t(muii))%*%t(Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)
           uyb <- (uyy - uy%*%t(muii))%*%(invGama%*%(z1*(1/sigmae))%*%Lambda1)
           
-          auxb <- MomTrunc::onlymeanTMD(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0),nu=(nu + length(cc1[cc1==0])),dist = "t")
+          auxb <- relliptical::mvtelliptical(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0),dist = "t",nu=(nu + length(cc1[cc1==0])))
           yh <- matrix(y1,nj[j],1)
-          yh[cc1==1] <- auxb
+          yh[cc1==1] <- auxb$EY
           
           best <- (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(yh - muii)
           
@@ -276,9 +276,9 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
           Sirc=round(((t(Sirc)+Sirc)/2),2)
           auxEU <- MomTrunc::pmvnormt(lower = as.vector(LL1c),upper=as.vector(LU1c), mean = as.vector(muiic),sigma = as.matrix(Sirc),nu=(nu + 4 + length(cc1[cc1==0])))
           
-          auxEw <- MomTrunc::meanvarTMD(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sirc),nu=(nu + 4 + length(cc1[cc1==0])),dist = "t")
+          auxEw <- relliptical::mvtelliptical(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sirc),dist = "t",nu=(nu + 4 + length(cc1[cc1==0])))
           
-          Ew1aux <- auxEw$mean
+          Ew1aux <- auxEw$EY
           Ew2aux <- auxEw$EYY
           
           Eu2yy <- (dp/((nu + Qy0)^2))*(auxEU/aux2U)*y1%*%t(y1)
@@ -655,9 +655,9 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
           
           u <- as.numeric(aux1U/aux2U)
           
-          auxy <- MomTrunc::meanvarTMD(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 2))*SIGMA),nu=(nu+2),dist = "t")
-          
-          uy <- u*auxy$mean
+          auxy <- relliptical::mvtelliptical(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 2))*SIGMA),dist = "t",nu=(nu+2))
+            
+          uy <- u*auxy$EY
           uyy <- u*auxy$EYY
           
           ub <- (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(uy - u*muii)
@@ -665,21 +665,21 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
           uyb <- (uyy - uy%*%t(muii))%*%(invGama%*%(z1*(1/sigmae))%*%Lambda1)
           
           
-          auxb <- MomTrunc::onlymeanTMD(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix(SIGMA),nu=(nu),dist = "t")
-          yh <- auxb
+          auxb <- relliptical::mvtelliptical(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix(SIGMA),dist = "t",nu=(nu))
+          yh <- auxb$EY
           best <- (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(yh - muii)
           
       
           
           cp <- (((nu+nj[j])/nu)^2)*((gamma((nu+nj[j])/2)*gamma((nu+4)/2))/(gamma(nu/2)*gamma((nu+nj[j]+4)/2)))
           
-          auxw <- MomTrunc::meanvarTMD(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 4))*SIGMA),nu=(nu+4),dist = "t")
+          auxw <- relliptical::mvtelliptical(lower = as.vector(LL1),upper=as.vector(LU1),mu = as.vector(muii), Sigma = as.matrix((nu/(nu + 4))*SIGMA),dist = "t",nu=(nu+4))
           
          auxEU <- MomTrunc::pmvnormt(lower = as.vector(LL1),upper=as.vector(LU1), mean = as.vector(muii),sigma = as.matrix((nu/(nu + 4))*SIGMA),nu=(nu+4))
           
           
           Eu2yy <- cp*(auxEU/aux2U)*auxw$EYY
-          Eu2y <- cp*(auxEU/aux2U)*auxw$mean
+          Eu2y <- cp*(auxEU/aux2U)*auxw$EY
           Eu2 <- cp*(auxEU/aux2U)
           
           E2 <- Eu2yy - Eu2y%*%t(muii) - muii%*%t(Eu2y) + Eu2*(muii)%*%t(muii)
@@ -708,8 +708,8 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
           
           u <- as.numeric(aux1U/aux2U)*(1/auxQy0)
           Sc0til=round((Sc0til+t(Sc0til))/2,3)
-          auxy <- MomTrunc::meanvarTMD(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0til),nu=(nu + 2 + length(cc1[cc1==0])),dist = "t")
-          w1aux <- auxy$mean
+          auxy <- relliptical::mvtelliptical(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0til),dist = "t",nu=(nu + 2 + length(cc1[cc1==0])))
+          w1aux <- auxy$EY
           w2aux <- auxy$EYY
           
           uy <- matrix(y1,nj[j],1)*u
@@ -725,9 +725,9 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
           ubb <- Lambda1 + (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(uyy - uy%*%t(muii) - muii%*%t(uy) + u*muii%*%t(muii))%*%t(Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)
           uyb <- (uyy - uy%*%t(muii))%*%(invGama%*%(z1*(1/sigmae))%*%Lambda1)
           
-          auxb <- MomTrunc::onlymeanTMD(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0),nu=(nu + length(cc1[cc1==0])),dist = "t")
+          auxb <- relliptical::mvtelliptical(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sc0),dist = "t",nu=(nu + length(cc1[cc1==0])))
           yh <- matrix(y1,nj[j],1)
-          yh[cc1==1] <- auxb
+          yh[cc1==1] <- auxb$EY
           
           best <- (Lambda1%*%(t(z1)*(1/sigmae))%*%invGama)%*%(yh - muii)
           
@@ -737,9 +737,9 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
           Sirc=round(Sirc,3)
           auxEU <- MomTrunc::pmvnormt(lower = as.vector(LL1c),upper=as.vector(LU1c), mean = as.vector(muiic),sigma = as.matrix(Sirc),nu=(nu + 4 + length(cc1[cc1==0])))
           
-          auxEw <- MomTrunc::meanvarTMD(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sirc),nu=(nu + 4 + length(cc1[cc1==0])),dist = "t")
+          auxEw <- relliptical::mvtelliptical(lower = as.vector(LL1c),upper=as.vector(LU1c),mu = as.vector(muiic), Sigma = as.matrix(Sirc),dist = "t",nu=(nu + 4 + length(cc1[cc1==0])))
           
-          Ew1aux <- auxEw$mean
+          Ew1aux <- auxEw$EY
           Ew2aux <- auxEw$EYY
           
           Eu2yy <- (dp/((nu + Qy0)^2))*(auxEU/aux2U)*y1%*%t(y1)

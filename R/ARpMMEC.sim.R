@@ -5,6 +5,7 @@
 #' @import tmvtnorm
 #' @import tcltk
 #' @import stats
+#' @import relliptical
 #' @description This function simulates a censored response variable with autoregressive errors of order \code{p}, with mixed effect and a established censoring rate. This function returns the censoring vector and censored response vector. 
 #' @param m Number of individuals
 #' @param x Design matrix of the fixed effects of order \code{n x s}, corresponding to vector of fixed effects.  

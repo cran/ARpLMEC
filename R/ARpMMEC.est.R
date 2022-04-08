@@ -9,6 +9,7 @@
 #' @import MomTrunc
 #' @import stats
 #' @import TTmoment
+#' @import relliptical
 #' @description This functino fits left, right or intervalar censored mixed-effects linear model, with autoregressive errors of order \code{p}, using the EM algorithm. It returns estimates, standard errors and prediction of future observations.
 #' @param y Vector \code{1 x n} of censored responses, where \code{n} is the sum of the number of observations of each individual
 #' @param x Design matrix of the fixed effects of order \code{n x s}, corresponding to vector of fixed effects.

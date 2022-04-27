@@ -16,30 +16,33 @@
 #' @param sigmae It's the value for sigma. 
 #' @param D Covariance Matrix for the random effects.
 #' @param phi Vector of length \code{Arp}, of values for autoregressive parameters. 
+#' @param struc  Correlation structure. This must be one of \code{UNC},\code{ARp},\code{DEC},\code{SYM} or \code{DEC(AR)}.
+#' @param typeModel \code{Normal} for Normal distribution and \code{Student} for t-Student distribution. Default is \code{Normal}
 #' @param p.cens Censoring level for the process. Default is \code{0}
 #' @param cens.type \code{left} for left censoring, \code{right} for right censoring and \code{interval} for intervalar censoring. Default is \code{left}
+#' @param nu degrees of freedom for t-Student distibution (nu > 0, maybe non-integer). 
 #' @return returns list:
 #' \item{cc}{Vector of censoring indicators.}
 #' \item{y_cc}{Vector of responses censoring.}
 #' @examples
 #' \dontrun{
-#'  p.cens   = 0.1
-#'  m           = 50
-#'  D = matrix(c(0.049,0.001,0.001,0.002),2,2)
-#'  sigma2 = 0.30
-#'  phi    = c(0.48,-0.2)
-#'  beta   = c(1,2,1)
-#'  nj=rep(6,m) 
-#'  tt=rep(seq(1:6),m)
-#'  x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
-#'  z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
-#'  data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
+#'p.cens   = 0.1
+#'m           = 10
+#'D = matrix(c(0.049,0.001,0.001,0.002),2,2)
+#'sigma2 = 0.30
+#'phi    = 0.6
+#'beta   = c(1,2,1)
+#'nj=rep(4,10)
+#'tt=rep(1:4,length(nj))
+#'x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
+#'z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
+#'data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens)
 #'  y<-data$y_cc
 #'  cc<-data$cc
 #' }
 #' @export
-ARpMMEC.sim=function(m,x=NULL,z=NULL,tt=NULL,nj,beta,sigmae,D,phi,p.cens= 0,cens.type="left")
-  {
+ARpMMEC.sim=function(m,x=NULL,z=NULL,tt=NULL,nj,beta,sigmae,D,phi,struc="ARp",typeModel="Normal",p.cens= 0,cens.type="left",nu=NULL)
+{
   
    if(m==sum(nj))                        stop("not compatible sizes between m and nj")
 
@@ -79,14 +82,16 @@ ARpMMEC.sim=function(m,x=NULL,z=NULL,tt=NULL,nj,beta,sigmae,D,phi,p.cens= 0,cens
     if(!is.numeric(phi))              stop("phi must be a numeric vector. Check documentation!")
     if(sum(abs(phi))>=1)                   stop("the sum of the phi must be less than 1. Check documentation!")
   
- 
     if(cens.type!="left" & cens.type!="right" & cens.type!="interval")stop('cens.type must be left, right or interval. Check documentation!')
-  
-  
- 
-  if(p.cens>1| p.cens<0)       stop("the percCensu must be between 0 and 1 . Check documentation!")
+  if(typeModel!='Normal'& typeModel!='Student')   stop('typeModel must be Normal or Student. Check documentation!')
 
-  MMsimu(m=m,x=x,z=z,tt=tt,nj=nj,beta=beta,sigmae=sigmae,D=D,phi=phi,percCensu=p.cens,cens.type=cens.type)
-      
-      }
+  if(struc!="DEC"&struc!="DEC(AR)"&struc!="SYM"&struc!="ARp"&struc!="UNC") stop("Struc must be UNC, DEC, DEC(AR), SYM or ARp. Check documentation!")
+    if(p.cens>1| p.cens<0)       stop("the percCensu must be between 0 and 1 . Check documentation!")
+  if(!is.null(nu)){ 
+  if(!is.numeric(nu))                   stop("nu must be a numeric. Check documentation!")}
+  if(!is.numeric(p.cens))                   stop("p.cens must be a numeric. Check documentation!")
   
+  MMsimu(m=m,x=x,z=z,tt=tt,nj=nj,beta=beta,sigmae=sigmae,D=D,phi=phi,struc=struc,typeModel=typeModel,percCensu=p.cens,cens.type=cens.type,nu=nu)
+
+      }
+

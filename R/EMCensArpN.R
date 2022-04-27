@@ -95,11 +95,13 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
     MI <- matrix(0,p+1+length(D1[upper.tri(D1, diag = T)])+Arp,
                  p+1+length(D1[upper.tri(D1, diag = T)])+Arp) 
     
+    res <- vector(mode = "numeric", length = N)
     ubi=matrix(0,m2,m)
     ubbi=matrix(0,m2,m2)
     uybi=matrix(0,N,m2)
     uyyi=matrix(0,N,N)
     uyi=matrix(0,N,m)
+    yhi=matrix(0,N,1)
     xi=matrix(0,N,m1)
     zi=matrix(0,N,m2) 
     
@@ -192,15 +194,17 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
       uybi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),(((j-1)*q1)+1) : (j*q1)]<-uyb
       uyyi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]<-uyy
       uyi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),j]<-uy
+      yhi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),] <- uy
       zi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-z1
       xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1
+      
       
       tetaMI=c(beta1,sigmae,phi)
       si<-Jt(tetaMI,uy,x1,z1,tt1,ub,ubb,p,Arp,D1)
       MI <- MI + t(si)%*%si
       
     }
-    
+    yorg<-apply(yhi,1,sum)
     beta1<- solve(soma3)%*%soma4
     sigmae<- (1/N)*(soma2)
     sigmae<-as.numeric(sigmae)
@@ -233,6 +237,17 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
     teta<-teta1
     logver1<-logver
     
+  }
+  
+  
+  for (k in 1:length(nj)) 
+  {tc<-tt[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+  if(Arp=="UNC"){Mq<-diag(1,length(tc))}
+  if(Arp!="UNC"){Mq<- MatArpJ(phi,tc,sigmae)}
+   res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
+                                                                    (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
+                                                                                                : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+                                                                                                                                                                         -x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1)) 
   }
   
   dd<-D1[upper.tri(D1, diag = T)]
@@ -322,7 +337,7 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   
   obj.out <- list(beta1 = beta1, sigmae= sigmae, phi=phi, dd = dd, loglik=loglik,
                   AIC=AICc, BIC=BICc, AICcorr=AICcorr, iter = count, varbeta=varbeta,
-                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI,
+                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI, yog=yorg,residuals=res,
                   Prev= Predicao, time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
                   tableA=tableA)
   
@@ -344,8 +359,6 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   return(obj.out)
   
 }
-
-
 
 
 EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Prev,step,isubj,xpre,zpre)
@@ -436,6 +449,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       soma5<-matrix(0,p,p) 
       MI <- matrix(0,p+1+length(D1[upper.tri(D1, diag = T)])+2,
                    p+1+length(D1[upper.tri(D1, diag = T)])+2) 
+      res <- vector(mode = "numeric", length = N)
       ub1<-ubi
       
       ubi=matrix(0,m2,m)     
@@ -443,6 +457,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       uybi=matrix(0,N,m2)
       uyyi=matrix(0,N,N)
       uyi=matrix(0,N,m)
+      yhi=matrix(0,N,1)
       xi=matrix(0,N,m1)
       zi=matrix(0,N,m2) 
        ver<-matrix(0,m,1)
@@ -524,6 +539,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         ubbi[(((j-1)*q1)+1) : (j*q1), (((j-1)*q1)+1) : (j*q1)]<-ubb
         zi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-z1
         xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1
+        yhi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),] <- uy
         dbeta <- (1/sigmae)*((t(x1)%*%solve(eGama)%*%(uy-z1%*%ub)) - (t(x1)%*%solve(eGama)%*%x1)%*%beta1)
         dsigma <- -(1/2)*((nj[j]/sigmae)-(1/sigmae^2)*((sum(diag(uyy%*%solve(eGama)))-t(uy)%*%solve(eGama)%*%gammai-t(gammai)%*%solve(eGama)%*%uy-sum(diag(solve(eGama)%*%((uyb)%*%t(z1))))-sum(diag(solve(eGama)%*%((uyb)%*%t(z1))))
                                                         +t(gammai)%*%solve(eGama)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(eGama)%*%gammai+t(gammai)%*%solve(eGama)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(eGama)%*%z1)))))
@@ -557,11 +573,11 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         MI <- MI + si%*%t(si)
         
       }
-      
+      yorg<-apply(yhi,1,sum)
       beta1<- solve(soma3)%*%soma4
       sigmae<- (1/N)*(soma2)
       sigmae<-as.numeric(sigmae)
-      D1<- (1/m)*(soma1)
+      D1<- (1/m)*(soma1)                      
       iD1<- solve(D1)                                                                                                         
       rhos <- optim(c(rho,gamma), method = "L-BFGS-B", FCi, lower =c(0.01,0.01), upper =c(0.9,30), beta1=beta1,sigmae=sigmae,tt=tt,ubi=ubi,ubbi=ubbi,uybi=uybi,uyyi=uyyi,uyi=uyi,xi=xi,zi=zi,nj=nj,hessian=TRUE)$par
       rho<-rhos[1]
@@ -569,8 +585,10 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],rho,gamma)
       teta1crit <- c(beta1,sigmae)
       logver <- sum(log(ver))
+        varbeta<-solve(soma5)
       
-      varbeta<-solve(soma5)
+      
+      
       
       
       if (count>=1){
@@ -639,12 +657,13 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       MI <- matrix(0,p+1+length(D1[upper.tri(D1, diag = T)])+1,
                    p+1+length(D1[upper.tri(D1, diag = T)])+1) 
       ub1<-ubi
-      
+      res <- vector(mode = "numeric", length = N)
       ubi=matrix(0,m2,m)    
       ubbi=matrix(0,m2,m2)
       uybi=matrix(0,N,m2)
       uyyi=matrix(0,N,N)
       uyi=matrix(0,N,m)
+      yhi=matrix(0,N,1)
       xi=matrix(0,N,m1)
       zi=matrix(0,N,m2)
       ver<-matrix(0,m,1)
@@ -725,6 +744,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         uybi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-uyb
         ubi[(((j-1)*q1)+1) : (j*q1), j]<-ub
         ubbi[(((j-1)*q1)+1) : (j*q1), (((j-1)*q1)+1) : (j*q1)]<-ubb
+        yhi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),] <- uy
         zi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-z1
         xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1  
         
@@ -753,7 +773,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         MI <- MI + si%*%t(si)
         
       }
-      
+      yorg<-apply(yhi,1,sum)
       beta1<- solve(soma3)%*%soma4
       sigmae<- (1/N)*(soma2)
       sigmae<-as.numeric(sigmae)
@@ -844,12 +864,13 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
                    p+1+length(D1[upper.tri(D1, diag = T)])+1) 
       
       ub1<-ubi
-      
+      res <- vector(mode = "numeric", length = N)
       ubi=matrix(0,m2,m)    
       ubbi=matrix(0,m2,m2)
       uybi=matrix(0,N,m2)
       uyyi=matrix(0,N,N)
       uyi=matrix(0,N,m)
+      yhi=matrix(0,N,1)
       xi=matrix(0,N,m1)
       zi=matrix(0,N,m2)
       ver<-matrix(0,m,1)
@@ -934,6 +955,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         uybi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-uyb
         ubi[(((j-1)*q1)+1) : (j*q1), j]<-ub
         ubbi[(((j-1)*q1)+1) : (j*q1), (((j-1)*q1)+1) : (j*q1)]<-ubb
+        yhi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),] <- uy
         zi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-z1
         xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1
         
@@ -965,7 +987,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         MI <- MI + si%*%t(si)
         
       }
-      
+      yorg<-apply(yhi,1,sum)
       beta1<- solve(soma3)%*%soma4
       sigmae<- (1/N)*(soma2)
       sigmae<-as.numeric(sigmae)
@@ -1049,12 +1071,13 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       MI <- matrix(0,p+1+length(D1[upper.tri(D1, diag = T)]),
                    p+1+length(D1[upper.tri(D1, diag = T)])) 
       ub1<-ubi
-      
+      res <- vector(mode = "numeric", length = N)
       ubi=matrix(0,m2,m)     
       ubbi=matrix(0,m2,m2)
       uybi=matrix(0,N,m2)
       uyyi=matrix(0,N,N)
       uyi=matrix(0,N,m)
+      yhi=matrix(0,N,1)
       xi=matrix(0,N,m1)
       zi=matrix(0,N,m2)
       
@@ -1138,6 +1161,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         uybi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-uyb
         ubi[(((j-1)*q1)+1) : (j*q1), j]<-ub
         ubbi[(((j-1)*q1)+1) : (j*q1), (((j-1)*q1)+1) : (j*q1)]<-ubb
+        yhi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),] <- uy
         zi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*q1)+1) : (j*q1)]<-z1
         xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1
         
@@ -1159,7 +1183,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         si <- matrix(c(t(dbeta),t(dsigma),t(deralpha),p+1+length(D1[upper.tri(D1, diag = T)]),1))
         MI <- MI + si%*%t(si)
       }
-      
+      yorg<-apply(yhi,1,sum)
       beta1<- solve(soma3)%*%soma4
       sigmae<- (1/(N))*as.numeric(soma2)
       D1<- (1/(m))*(soma1)
@@ -1191,6 +1215,18 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       
     }		
   } 
+  
+
+  for (k in 1:length(nj)) 
+  {tc<-tt[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+  if(struc=="DEC(AR)"){Mq<- MatDec(tc,rho,gamma,"DEC(AR)")}
+  if(struc=="SYM"){Mq<-  MatDec(tc,rho,gamma,"SYM")}
+  if(struc=="DEC"){Mq<-  MatDec(tc,rho,gamma,"DEC")}
+  res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
+                                                                  (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
+                                                                                              : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+                                                                                                                                    -x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1)) 
+  }
   
   dd<-D1[upper.tri(D1, diag = T)]
   
@@ -1257,7 +1293,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
 
   obj.out <- list(beta1 = beta1, sigmae= sigmae, phi=phi, dd = dd, loglik=loglik,
                   AIC=AICc, BIC=BICc, AICcorr=AICcorr, iter = count, varbeta=varbeta,
-                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI,
+                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI, yog =yorg,residuals=res,
                  time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
                   tableA=tableA)
   

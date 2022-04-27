@@ -14,8 +14,11 @@ ARpMMEC.sim(
   sigmae,
   D,
   phi,
+  struc = "ARp",
+  typeModel = "Normal",
   p.cens = 0,
-  cens.type = "left"
+  cens.type = "left",
+  nu = NULL
 )
 }
 \arguments{
@@ -37,9 +40,15 @@ ARpMMEC.sim(
 
 \item{phi}{Vector of length \code{Arp}, of values for autoregressive parameters.}
 
+\item{struc}{Correlation structure. This must be one of \code{UNC},\code{ARp},\code{DEC},\code{SYM} or \code{DEC(AR)}.}
+
+\item{typeModel}{\code{Normal} for Normal distribution and \code{Student} for t-Student distribution. Default is \code{Normal}}
+
 \item{p.cens}{Censoring level for the process. Default is \code{0}}
 
 \item{cens.type}{\code{left} for left censoring, \code{right} for right censoring and \code{interval} for intervalar censoring. Default is \code{left}}
+
+\item{nu}{degrees of freedom for t-Student distibution (nu > 0, maybe non-integer).}
 }
 \value{
 returns list:
@@ -51,17 +60,17 @@ This function simulates a censored response variable with autoregressive errors 
 }
 \examples{
 \dontrun{
- p.cens   = 0.1
- m           = 50
- D = matrix(c(0.049,0.001,0.001,0.002),2,2)
- sigma2 = 0.30
- phi    = c(0.48,-0.2)
- beta   = c(1,2,1)
- nj=rep(6,m) 
- tt=rep(seq(1:6),m)
- x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
- z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
- data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
+p.cens   = 0.1
+m           = 10
+D = matrix(c(0.049,0.001,0.001,0.002),2,2)
+sigma2 = 0.30
+phi    = 0.6
+beta   = c(1,2,1)
+nj=rep(4,10)
+tt=rep(1:4,length(nj))
+x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
+z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
+data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens)
  y<-data$y_cc
  cc<-data$cc
 }

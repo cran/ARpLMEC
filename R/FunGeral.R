@@ -160,14 +160,18 @@ logliktArplmec <- function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
     LU1 <- LU[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     
     muii <- W1%*%gamma1
-    if(pii!=0)
+    if(length(pii)>1 )
       { eGamma<-MatArp(pii,tt1,sigmae)
         Gama <- eGamma/sigmae}
     
-    if(pii==0)
+    if(length(pii)==1 )
+      { if(pii!=0 ){
+      eGamma<-MatArp(pii,tt1,sigmae)
+    Gama <- eGamma/sigmae}
+     if(pii==0)
     { Gama=diag(1,nj[j])
     eGamma=Gama*sigmae}
-    
+    }
     invGama <- solve(Gama)
     SIGMA <- (sigmae*Gama + (z1)%*%D1%*%t(z1)) 
     SIGMA <-(SIGMA+t(SIGMA))/2
@@ -609,8 +613,10 @@ FCi<-function(rhoG,beta1,sigmae,tt,ubi,ubbi,uybi,uyyi,uyi,xi,zi,nj){
     x1=xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]
     
     tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
-    gammai=x1%*%beta1                                                
+    gammai=x1%*%beta1
+ 
     Cii<-MatAr1(tt1,rho,gamma,sigmae)
+ 
     if(nj[j]>1){
     soma<- soma - 0.5*log(det(Cii))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-sum(diag(solve(Cii)%*%(z1%*%t(uyb))))
                                          +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))

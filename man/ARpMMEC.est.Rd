@@ -49,7 +49,7 @@ ARpMMEC.est(
 
 \item{nu.fixed}{Logical. Should estimate the parameter "nu" for the t-student distribution?. If is False indicates the value in the list of initial values. Default is \code{FALSE}}
 
-\item{typeModel}{\code{Normal} for Normal distribution and \code{Student} for Student distribution. Default is \code{Normal}}
+\item{typeModel}{\code{Normal} for Normal distribution and \code{Student} for t-Student distribution. Default is \code{Normal}}
 
 \item{cens.type}{\code{left} for left censoring, \code{right} for right censoring and \code{interval} for intervalar censoring. Default is \code{left}}
 
@@ -79,6 +79,7 @@ returns list of class \dQuote{ARpMMEC}:
 \item{RnEffect}{Data frame with: estimate, standar errors and confidence intervals  of the random effects.}
 \item{Est}{Vector of parameters estimate (fixed Effects, sigma2, phi, random effects).}
 \item{SE}{Vector of the standard errors of (fixed Effects, sigma2, phi, random effects).}
+\item{Residual}{Vector of the marginal residuals.}
 \item{loglik}{Log-likelihood value.}
 \item{AIC}{Akaike information criterion.}
 \item{BIC}{Bayesian information criterion.}
@@ -94,29 +95,25 @@ This functino fits left, right or intervalar censored mixed-effects linear model
 \examples{
 \dontrun{
 p.cens   = 0.1
-m           = 50
+m           = 10
 D = matrix(c(0.049,0.001,0.001,0.002),2,2)
 sigma2 = 0.30
-phi    = c(0.48,0.5)
+phi    = 0.6
 beta   = c(1,2,1)
-nj=rep(c(6,5,6,8,5,7,8,9,10,12),5)
-tt=rep(4,sum(nj))
+nj=rep(4,10)
+tt=rep(1:4,length(nj))
 x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
 z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
-data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,p.cens)
-attach(data, warn.conflicts = F)
-Arp    = 2
-
-teste1=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Normal",MaxIter = 2)
-teste2=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Student",MaxIter = 2)
+data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens)
+teste1=ARpMMEC.est(data$y_cc,x,z,tt,data$cc,nj,struc="ARp",order=1,typeModel="Normal",MaxIter = 2)
+teste2=ARpMMEC.est(data$y_cc,x,z,tt,data$cc,nj,struc="ARp",order=1,typeModel="Student",MaxIter = 2)
 
 xx=matrix(runif(6*length(beta),-1,1),6,length(beta))
 zz=matrix(runif(6*dim(D)[1],-1,1),6,dim(D)[1])
 isubj=c(1,4,5)
-teste3=ARpMMEC.est(y_cc,x,z,tt,cc,nj,struc="ARp",order=1,typeModel="Normal",
-       MaxIter = 2,Prev=TRUE,step=2,isubj=isubj,xpre=xx,zpre=zz)
+teste3=ARpMMEC.est(data$y_cc,x,z,tt,data$cc,nj,struc="ARp",order=1,typeModel="Normal",
+                  MaxIter = 2,Prev=TRUE,step=2,isubj=isubj,xpre=xx,zpre=zz)
 teste3$Prev
-
 
 }
 

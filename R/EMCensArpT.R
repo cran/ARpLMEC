@@ -1,4 +1,5 @@
 
+
 EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,iter.max,precision)
 {
   start.time <- Sys.time()
@@ -126,7 +127,7 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
     soma7 <- matrix(0,p,p)
     
     Infbetas <- matrix(0,p,p)
-    
+    res <- vector(mode = "numeric", length = N)
     ui <- rep(0,m) 
     uyi <- matrix(0,N,m) 
     uyyi <- matrix(0,N,N) 
@@ -392,7 +393,16 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
     
   } 
   
-  
+  for (k in 1:length(nj)) 
+  {tc<-ttc[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+  if(struc=="DEC(AR)"){Mq<- MatDec(tc,phi1,phi2,"DEC(AR)")}
+  if(struc=="SYM"){Mq<-  MatDec(tc,phi1,phi2,"SYM")}
+  if(struc=="DEC"){Mq<-  MatDec(tc,phi1,phi2,"DEC")}
+  res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
+                                                                  (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
+                                                                                              : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yhatorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+                                                                                                                                    -x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1)) 
+  }
   dd <- D1[upper.tri(D1, diag = T)]
   
   
@@ -452,7 +462,7 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
   
   obj.out <- list(beta1 = beta1, sigmae= sigmae, phi=phi, dd = dd,nu=nu, loglik=loglik,
                   AIC=AICc, BIC=BICc, iter = count,
-                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi,ui=ui, MI=Infbetas,
+                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi,ui=ui, MI=Infbetas,residual=res,
                   Prev= NULL, time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
                   tableA=tableA,yest=yfit, yog = yhatorg)
   
@@ -528,7 +538,6 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     if(Arp=="UNC"){
       pii=0
       Arp=0
-      pis = 0
       phi = 0}
   }
   
@@ -537,16 +546,14 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     sigmae= 0.25 
     D1=0.1*diag(dim(z)[2])
     nu=3
-    pis = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
+    pii = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
     iD1<- solve(D1)
     if(Arp!="UNC"){
-      pis = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
-      pii=pis
-      phi = estphit(pis)}
+      pii = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
+      phi = estphit(pii)}
     if(Arp=="UNC"){
       Arp=0
       pii=0
-      pis = 0
       phi = 0}
   }
 
@@ -586,7 +593,7 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     yest <- matrix(0,N,1)    
     biest <- matrix(0,m2,m) 
     yhi <- matrix(0,N,1)    
-   
+    res <- vector(mode = "numeric", length = N)
     
     for (j in 1:m){
       cc1 <- cc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
@@ -824,7 +831,15 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     loglikp <- loglikp1
 
   } 
-  
+  for (k in 1:length(nj)) 
+  {tc<-ttc[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+  if(Arp=="UNC"){Mq<-diag(1,length(tc))}
+  if(Arp!="UNC"){Mq<- MatArpJ(phi,tc,sigmae)}
+  res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
+                                                                  (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
+                                                                                              : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yhatorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+                                                                                                                                    -x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1)) 
+  }
   dd <- D1[upper.tri(D1, diag = T)]
  
   npar <- length(c(teta))
@@ -871,7 +886,7 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     
     obj.out <- list(beta1 = beta1, sigmae= sigmae, phi=phi, dd = dd,nu=nu, loglik=loglik,
                     AIC=AICc, BIC=BICc, iter = count,
-                    ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi,ui=ui, MI=Infbetas,
+                    ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi,ui=ui, MI=Infbetas,residual=res,
                     Prev= NULL, time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
                     tableA=tableA,yest=yfit, yog = yhatorg)
     

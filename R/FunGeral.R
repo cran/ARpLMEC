@@ -1,73 +1,4 @@
-MomemNT <- function(u=c(0,0),S=diag(2),qc=c(1,2)) {
-  
-  nic=length(u)
-  
-  if (nic==1) {
-    
-    qq <- (1/sqrt(S))*(-qc+u)
-    R<-1
-    alpha <- pnorm(-qq)
-    
-    dd <- dnorm(-qq)
-    H <- qq*dd
-    EX <- (1/alpha)*dd   
-    EXX <- 1+1/alpha*H
-    varX <- EXX-EX^2
-    Eycens <- -sqrt(S)*EX+u
-    varyic<- varX*S
-    E2yy<-varyic+Eycens^2
-    
-  }
-  
-  else {
-    
-    qq <- diag(1/sqrt(diag(S)))%*%(-qc+u)
-    R <-  diag(1/sqrt(diag(S)))%*%S%*%diag(1/sqrt(diag(S)))
-    alpha <- pmvnorm(upper=as.vector(-qq), corr=R)
-    #print(qq)
-    dd <- rep(0, nic)   #derivative vector
-    
-    for (j in 1:nic){
-      V <- R[-j, -j, drop=F]-R[-j,j, drop=F]%*%R[j,-j, drop=F]
-      nu <- -qq[-j]+R[-j,j, drop=F]%*%qq[j]
-      dd[j] <- dnorm(-qq[j])*pmvnorm(upper=as.vector(nu), sigma=V)
-    }
-    
-    H <- matrix(rep(0, nic*nic), nrow=nic)
-    RH <- matrix(rep(0, nic*nic), nrow=nic)
-    
-    if(nic==2)     {
-      H[1,2] <- H[2,1] <- dmvnorm(-qq[c(1, 2)],sigma=matrix(c(1, R[1,2], R[2,1], 1), nrow=2))
-      #sigma==R since qq is standardized
-      RH[1,2] <- RH[2,1] <- R[1,2]*H[1,2]
-    }
-    
-    else {
-      for( s in 1:(nic-1)){
-        for (t in (s+1):nic){
-          invR <- solve(R[c(s,t), c(s,t), drop=F])
-          nu <- -qq[-c(s,t)]+R[-c(s,t), c(s,t), drop=F]%*%invR%*%qq[c(s,t),,drop=F]
-          V <-  R[-c(s,t), -c(s,t), drop=F]- R[-c(s,t), c(s,t), drop=F]%*%invR%*%R[c(s,t), -c(s,t), drop=F]
-          H[s,t] <- H[t,s] <- pmvnorm(upper=as.vector(nu), sigma=V)*dmvnorm(-qq[c(s, t)],sigma=matrix(c(1, R[s,t], R[t,s], 1), nrow=2))
-          RH[s,t] <- RH[t,s] <- R[s,t]*H[s,t]
-        }
-      }
-    }
-    
-    h <- qq*dd-apply(RH, 1, sum)
-    diag(H) <- h
-    EX <- (1/alpha)*R%*%dd   # a vector with a length of nic
-    EXX <- R+1/alpha*R%*%H%*%R
-    varX <- EXX-EX%*%t(EX)
-    Eycens <- -diag(sqrt(diag(S)))%*%EX+u
-    varyic <- diag(sqrt(diag(S)))%*%varX%*%diag(sqrt(diag(S)))
-    E2yy <- varyic+Eycens%*%t(Eycens)
-    
-  }
-  
-  return(list(Ey=Eycens,Eyy=E2yy,Vary=varyic))
-  
-}
+
 estphit = function(pit){
   p = length(pit)
   Phi = matrix(0,ncol=p,nrow=p)
@@ -161,16 +92,16 @@ logliktArplmec <- function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
     
     muii <- W1%*%gamma1
     if(length(pii)>1 )
-      { eGamma<-MatArp(pii,tt1,sigmae)
-        Gama <- eGamma/sigmae}
+    { eGamma<-MatArp(pii,tt1,sigmae)
+    Gama <- eGamma/sigmae}
     
     if(length(pii)==1 )
-      { if(pii!=0 ){
+    { if(pii!=0 ){
       eGamma<-MatArp(pii,tt1,sigmae)
-    Gama <- eGamma/sigmae}
-     if(pii==0)
-    { Gama=diag(1,nj[j])
-    eGamma=Gama*sigmae}
+      Gama <- eGamma/sigmae}
+      if(pii==0)
+      { Gama=diag(1,nj[j])
+      eGamma=Gama*sigmae}
     }
     invGama <- solve(Gama)
     SIGMA <- (sigmae*Gama + (z1)%*%D1%*%t(z1)) 
@@ -180,16 +111,20 @@ logliktArplmec <- function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
     Lambda1 <- (Lambda1 + t(Lambda1))/2
     
     if(sum(cc1)==0)
-    {
-      ver[j,] <- suppressWarnings(MomTrunc::dmvST(x = as.vector(y1),mu = as.vector(muii),Sigma = as.matrix(SIGMA), lambda = rep(0,length(muii)), nu = nu ))
+    {  
+  
+      
+      ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1), mu = as.vector(muii), S = as.matrix(SIGMA), df = nu ))
+      
     }
     if(sum(cc1)>=1)
     {
       
       if(sum(cc1)==nj[j])
       {
-        ver[j,] <- suppressWarnings(MomTrunc::pmvST(lower = as.vector(LL1),upper=as.vector(LU1), mu = as.vector(muii),Sigma = as.matrix(SIGMA),lambda = rep(0,length(muii)),nu=nu,log2 = FALSE))
-      }
+         ver[j,] <- suppressWarnings(TruncatedNormal::pmvt(lb = as.vector(LL1),ub=as.vector(LU1), mu = as.vector(muii),df= nu, sigma = as.matrix(SIGMA)))
+        
+     }
       else{
         
         muiic <-  W1[cc1==1,]%*%gamma1 + SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1)
@@ -205,8 +140,9 @@ logliktArplmec <- function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
         LL1c <- LL1[cc1==1]
         LU1c <- LU1[cc1==1]
         
-        ver[j,] <- suppressWarnings(MomTrunc::dmvST(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),Sigma =as.matrix(SIGMA[cc1==0,cc1==0]),lambda = rep(0,length((y1[cc1==0]))), nu = nu)*as.numeric(MomTrunc::pmvST(lower = as.vector(LL1c),upper=as.vector(LU1c), mu = as.vector(muiic),Sigma = as.matrix(Sc0),lambda = rep(0,length(muiic)),nu=nu,log2 = FALSE)))
-        
+            
+        ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),S =as.matrix(SIGMA[cc1==0,cc1==0]),df= nu)*as.numeric(TruncatedNormal::pmvt(lb = as.vector(LL1c),ub=as.vector(LU1c), mu = as.vector(muiic),df=nu, sigma = as.matrix(Sc0))))
+       
       }
       
     } 
@@ -251,7 +187,7 @@ FCiArpt <- function(pii,beta1,sigmae,ttc,ubi,ubbi,uybi,uyyi,uyi,ui,x,z,nj){
   
   return(-soma)
 }
-FCiArp<-function(pi,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,tt,nj){
+FCiArp<-function(piis,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,tt,nj){
   m<-length(nj)[1]
   N<-sum(nj)
   p<-dim(x)[2]
@@ -271,7 +207,7 @@ FCiArp<-function(pi,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,tt,nj){
     z1=matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
     tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     gammai=x1%*%beta1                                                
-    Cii<- MatArp(pi,tt1,sigmae) 
+    Cii<- MatArp(piis,tt1,sigmae) 
     
     soma<- soma - 0.5*log(det(as.matrix(Cii)))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))
                                                     +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))
@@ -321,15 +257,15 @@ Jt = function(theta,y,x,z,tt,b,bb,p,Arp,D1) {
     Mn     = diag(1,n)*sig2
     invMn  = solve(Mn/sig2)
     spi= (t(y-x%*%beta-z%*%b)%*%invMn%*%(y-x%*%beta-z%*%b))
-          }
+  }
   if(Arp!=0){  phi    = theta[(l+2):length(theta)]
   p      = length(phi)
   Mn     = MatArpJ(phi,tt,sig2)
   invMn  = solve(Mn/sig2)
   lambda = matrix(c(-1,phi))
   spi    = t(lambda)%*%Dbeta(beta,y,x,z,b,p)%*%lambda}
-   dbeta  = 1/sig2*(t(x)%*%invMn%*%(y-z%*%b)- t(x)%*%invMn%*%x%*%beta)
- 
+  dbeta  = 1/sig2*(t(x)%*%invMn%*%(y-z%*%b)- t(x)%*%invMn%*%x%*%beta)
+  
   dsig2  = -n/(2*sig2) +spi/(2*sig2^2)
   if(length(D1)==1){
     dD_alp = 1
@@ -351,11 +287,11 @@ Jt = function(theta,y,x,z,tt,b,bb,p,Arp,D1) {
   derivadas=cbind(t(dbeta),t(dsig2),t(dalpha))
   if(Arp!=0){
     gp = function(phi,sigma=sig2)ifelse(length(phi)==1,log(MatArpJ(phi,tt,sigma))
-    ,log(det(MatArpJ(phi,tt,sigma))))
+                                        ,log(det(MatArpJ(phi,tt,sigma))))
     dgp    = matrix(jacobian(gp,phi))
     dphi   = -1/sig2*(-Dphi(beta,y,x,z,b,p) + Dphiphi(beta,y,x,z,b,p)%*%phi)-1/2*dgp
     derivadas=cbind(t(dbeta),t(dsig2),t(dphi),t(dalpha))
-    }
+  }
   return(derivadas)
 }
 MatDec <- function(tt,phi1,phi2,struc){
@@ -410,7 +346,7 @@ FCit <- function(phiG,beta1,sigmae,ttc,ubi,ubbi,uybi,uyyi,uyi,ui,x,z,nj,struc){
     
     x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
     z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
-     muii <- x1%*%beta1
+    muii <- x1%*%beta1
     tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     
     ub <- matrix(ubi[(((j-1)*q1)+1) : (j*q1), j], nrow=q1, ncol=1)
@@ -438,7 +374,7 @@ FCiphi1t <- function(phi1,phi2,beta1,sigmae,ttc,ubi,ubbi,uybi,uyyi,uyi,ui,x,z,nj
   m <- length(nj)[1]
   p <- dim(x)[2]
   q1 <- dim(z)[2]
- 
+  
   beta1 <- as.vector(c(beta1))
   soma <- 0
   
@@ -446,7 +382,7 @@ FCiphi1t <- function(phi1,phi2,beta1,sigmae,ttc,ubi,ubbi,uybi,uyyi,uyi,ui,x,z,nj
     
     x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
     z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
-      muii <- x1%*%beta1
+    muii <- x1%*%beta1
     tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     
     ub <- matrix(ubi[(((j-1)*q1)+1) : (j*q1), j], nrow=q1, ncol=1)
@@ -471,7 +407,6 @@ FCiphi1t <- function(phi1,phi2,beta1,sigmae,ttc,ubi,ubbi,uybi,uyyi,uyi,ui,x,z,nj
   return(-soma)
 }
 logliktslmec <-  function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,struc){
-  
   p <- dim(x)[2]
   
   m <- length(nj)[1]
@@ -488,7 +423,7 @@ logliktslmec <-  function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,str
     y1 <- y[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
     z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
-       tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     W1 <- x1
     
     LL1 <- LL[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
@@ -505,15 +440,19 @@ logliktslmec <-  function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,str
     
     if(sum(cc1)==0)
     {
-      ver[j,] <- suppressWarnings(MomTrunc::dmvST(x = as.vector(y1),mu = as.vector(muii),Sigma = as.matrix(SIGMA), lambda = rep(0,length(muii)), nu = nu ))
-    }
+    
+     
+      ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1),mu = as.vector(muii), S = as.matrix(SIGMA), df = nu ))
+      
+          }
     if(sum(cc1)>=1)
     {
       
       if(sum(cc1)==nj[j])
       {
-        ver[j,] <- suppressWarnings(MomTrunc::pmvST(lower = as.vector(LL1),upper=as.vector(LU1), mu = as.vector(muii),Sigma = as.matrix(SIGMA),lambda = rep(0,length(muii)),nu=nu,log2 = FALSE))
-      }
+        
+        ver[j,] <- suppressWarnings(TruncatedNormal::pmvt(lb = as.vector(LL1),ub=as.vector(LU1), mu= as.vector(muii),df=nu,sigma = as.matrix(SIGMA) ))
+   }
       else{
         
         muiic <-  W1[cc1==1,]%*%gamma1 + SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1)
@@ -528,9 +467,11 @@ logliktslmec <-  function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,str
         
         LL1c <- LL1[cc1==1]
         LU1c <- LU1[cc1==1]
+
+         
+        ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),S =as.matrix(SIGMA[cc1==0,cc1==0]),df = nu)*as.numeric(TruncatedNormal::pmvt(lb = as.vector(LL1c),ub=as.vector(LU1c), mu = as.vector(muiic),df=nu,sigma = as.matrix(Sc0))))
         
-        ver[j,] <- suppressWarnings(MomTrunc::dmvST(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),Sigma =as.matrix(SIGMA[cc1==0,cc1==0]),lambda = rep(0,length((y1[cc1==0]))), nu = nu)*as.numeric(MomTrunc::pmvST(lower = as.vector(LL1c),upper=as.vector(LU1c), mu = as.vector(muiic),Sigma = as.matrix(Sc0),lambda = rep(0,length(muiic)),nu=nu,log2 = FALSE)))
-        
+     
       }
       
     } 
@@ -547,7 +488,7 @@ MatAr1<-function(tt,rho,gamma,sigma2){
   return(V)
 }
 DevEiAr1<-function(tt,rho,gamma,sigma2){
-   if(gamma<=0.0000001)
+  if(gamma<=0.0000001)
   {
     r <- length(tt)
     devR_r <- matrix(1,nrow=r,ncol=r)
@@ -614,16 +555,16 @@ FCi<-function(rhoG,beta1,sigmae,tt,ubi,ubbi,uybi,uyyi,uyi,xi,zi,nj){
     
     tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     gammai=x1%*%beta1
- 
+    
     Cii<-MatAr1(tt1,rho,gamma,sigmae)
- 
+    
     if(nj[j]>1){
-    soma<- soma - 0.5*log(det(Cii))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-sum(diag(solve(Cii)%*%(z1%*%t(uyb))))
-                                         +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))
+      soma<- soma - 0.5*log(det(Cii))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-sum(diag(solve(Cii)%*%(z1%*%t(uyb))))
+                                           +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))
     }
     if(nj[j]==1){
-    soma<- soma - 0.5*log(det(Cii))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%z1)))-sum(diag(solve(Cii)%*%(t(z1)%*%(uyb))))
-                                         +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%z1%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%z1%*%solve(Cii)%*%z1)))
+      soma<- soma - 0.5*log(det(Cii))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%z1)))-sum(diag(solve(Cii)%*%(t(z1)%*%(uyb))))
+                                           +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%z1%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%z1%*%solve(Cii)%*%z1)))
     }
     
   }
@@ -664,4 +605,166 @@ FCi_gamma<-function(rhoG,gamma,beta1,sigmae,tt,ubi,ubbi,uybi,uyyi,uyi,xi,zi,nj){
   }
   
   return(-soma)
+}
+logliknArplmec <- function(y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
+  
+  p <- dim(x)[2]
+  
+  m <- length(nj)[1]
+  q1 <- dim(z)[2]
+  gamma1 <- as.vector(c(betas))
+  iD1 <- solve(D1)
+  iD1 <- (iD1 + t(iD1))/2
+  
+  ver <- matrix(0,m,1)
+  
+  for(j in 1:m)
+  {
+    cc1 <- cc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    y1 <- y[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
+    z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
+    tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    W1 <- x1
+    
+    LL1 <- LL[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    LU1 <- LU[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    
+    muii <- W1%*%gamma1
+    if(length(pii)>1 )
+    { eGamma<-MatArp(pii,tt1,sigmae)
+    Gama <- eGamma/sigmae}
+    
+    if(length(pii)==1 )
+    { if(pii!=0 ){
+      eGamma<-MatArp(pii,tt1,sigmae)
+      Gama <- eGamma/sigmae}
+      if(pii==0)
+      { Gama=diag(1,nj[j])
+      eGamma=Gama*sigmae}
+    }
+    invGama <- solve(Gama)
+    SIGMA <- (sigmae*Gama + (z1)%*%D1%*%t(z1)) 
+    SIGMA <-(SIGMA+t(SIGMA))/2
+    SIGMAinv <- solve(SIGMA)
+    Lambda1 <- solve(iD1 + (t(z1)%*%invGama%*%z1)*(1/sigmae))
+    Lambda1 <- (Lambda1 + t(Lambda1))/2
+    
+    if(sum(cc1)==0)
+    {
+      ver[j,] <- suppressWarnings(LaplacesDemon::dmvn(x = as.vector(y1),mu = as.vector(muii),Sigma = as.matrix(SIGMA)))
+      
+      
+      }
+    if(sum(cc1)>=1)
+    {
+      
+      if(sum(cc1)==nj[j])
+      {
+    
+        
+        
+       ver[j,] <- suppressWarnings(TruncatedNormal::pmvnorm(lb = as.vector(LL1),ub=as.vector(LU1), 
+                                                    mu = as.vector(muii),sigma = as.matrix(SIGMA)))
+      }
+      else{
+        muiic <-  W1[cc1==1,]%*%gamma1 + SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1)
+        Si <- SIGMA[cc1==1,cc1==1]-SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%SIGMA[cc1==0,cc1==1]
+        Si <- (Si+t(Si))/2
+        
+        
+        Sc0 <- Si
+        
+        LL1c <- LL1[cc1==1]
+        LU1c <- LU1[cc1==1]
+     
+        ver[j,] <- suppressWarnings(LaplacesDemon::dmvn(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),
+                                                    Sigma =as.matrix(SIGMA[cc1==0,cc1==0]))*
+                                      as.numeric(TruncatedNormal::pmvnorm(lb= as.vector(LL1c),ub=as.vector(LU1c), mu = as.vector(muiic),
+                                                                  sigma = as.matrix(Sc0))))
+        
+                                                                                                                     
+  
+      }
+      
+    } 
+  } 
+  
+  logvero <- sum(log(ver))
+  
+  return(logvero)
+}
+logliknslmec <-  function(y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,struc){
+  
+  p <- dim(x)[2]
+  
+  m <- length(nj)[1]
+  q1 <- dim(z)[2]
+  gamma1 <- as.vector(c(betas))
+  iD1 <- solve(D1)
+  iD1 <- (iD1 + t(iD1))/2
+  
+  ver <- matrix(0,m,1)
+  
+  for(j in 1:m)
+  { 
+    cc1 <- cc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    y1 <- y[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
+    z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
+    tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    W1 <- x1
+    
+    LL1 <- LL[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    LU1 <- LU[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    
+    muii <- W1%*%gamma1
+    Gama <- MatDec(tt1,phi1,phi2,struc)
+    invGama <- solve(Gama)
+    SIGMA <- (sigmae*Gama + (z1)%*%D1%*%t(z1)) 
+    SIGMA <-(SIGMA+t(SIGMA))/2
+    SIGMAinv <- solve(SIGMA)
+    Lambda1 <- solve(iD1 + (t(z1)%*%invGama%*%z1)*(1/sigmae))
+    Lambda1 <- (Lambda1 + t(Lambda1))/2
+    
+    if(sum(cc1)==0)
+    {
+     ver[j,] <- suppressWarnings(LaplacesDemon::dmvn(x = as.vector(y1),mu = as.vector(muii),Sigma = as.matrix(SIGMA)))
+      
+    }
+    if(sum(cc1)>=1)
+    {
+      
+      if(sum(cc1)==nj[j])
+      {
+      
+        ver[j,] <- suppressWarnings(TruncatedNormal::pmvnorm(lb = as.vector(LL1),ub=as.vector(LU1), mu = as.vector(muii),sigma = as.matrix(SIGMA)))
+        
+       }
+      else{
+        
+        muiic <-  W1[cc1==1,]%*%gamma1 + SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1)
+        Si <- SIGMA[cc1==1,cc1==1]-SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%SIGMA[cc1==0,cc1==1]
+        Si <- (Si+t(Si))/2
+        
+   
+        
+        Sc0 <-Si
+        
+        LL1c <- LL1[cc1==1]
+        LU1c <- LU1[cc1==1]
+        
+        
+        ver[j,] <- suppressWarnings(LaplacesDemon::dmvn(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),Sigma =as.matrix(SIGMA[cc1==0,cc1==0]))*
+                                      as.numeric(TruncatedNormal::pmvnorm(lb = as.vector(LL1c),ub=as.vector(LU1c), mu = as.vector(muiic),sigma = as.matrix(Sc0))))
+        
+        
+      }
+      
+    } 
+  } 
+  
+  logvero <- sum(log(ver))
+  
+  return(logvero)
 }

@@ -15,8 +15,10 @@ ARpMMEC.sim(
   D,
   phi,
   struc = "ARp",
+  order = 1,
   typeModel = "Normal",
-  p.cens = 0,
+  p.cens = NULL,
+  n.cens = NULL,
   cens.type = "left",
   nu = NULL
 )
@@ -42,9 +44,13 @@ ARpMMEC.sim(
 
 \item{struc}{Correlation structure. This must be one of \code{UNC},\code{ARp},\code{DEC},\code{SYM} or \code{DEC(AR)}.}
 
+\item{order}{Order of the autoregressive process. Must be a positive integer value.}
+
 \item{typeModel}{\code{Normal} for Normal distribution and \code{Student} for t-Student distribution. Default is \code{Normal}}
 
-\item{p.cens}{Censoring level for the process. Default is \code{0}}
+\item{p.cens}{Censoring percentage for the process. Default is \code{NULL}}
+
+\item{n.cens}{Censoring level for the process. Default is \code{NULL}}
 
 \item{cens.type}{\code{left} for left censoring, \code{right} for right censoring and \code{interval} for intervalar censoring. Default is \code{left}}
 
@@ -70,7 +76,7 @@ nj=rep(4,10)
 tt=rep(1:4,length(nj))
 x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
 z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
-data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens)
+data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens=p.cens)
  y<-data$y_cc
  cc<-data$cc
 }

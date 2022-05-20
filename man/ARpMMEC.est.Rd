@@ -76,7 +76,8 @@ returns list of class \dQuote{ARpMMEC}:
 \item{FixEffect}{Data frame with: estimate, standar errors and confidence intervals of the fixed effects.}
 \item{Sigma2}{Data frame with: estimate, standar errors and confidence intervals  of the variance of the white noise process.}
 \item{Phi}{Data frame with: estimate, standar errors and confidence intervals  of the autoregressive parameters.}
-\item{RnEffect}{Data frame with: estimate, standar errors and confidence intervals  of the random effects.}
+\item{RandEffect}{Data frame with: estimate, standar errors and confidence intervals  of the random effects.}
+\item{nu}{the parameter "nu" for the t-student distribution}
 \item{Est}{Vector of parameters estimate (fixed Effects, sigma2, phi, random effects).}
 \item{SE}{Vector of the standard errors of (fixed Effects, sigma2, phi, random effects).}
 \item{Residual}{Vector of the marginal residuals.}
@@ -85,9 +86,11 @@ returns list of class \dQuote{ARpMMEC}:
 \item{BIC}{Bayesian information criterion.}
 \item{AICc}{Corrected Akaike information criterion.}
 \item{iter}{Number of iterations until convergence.}
+\item{Yfit}{Vector "y" fitted}
 \item{MI}{Information matrix}
 \item{Prev}{Predicted values (if xpre and zpre is not \code{NULL}).}
 \item{time}{Processing time.}
+\item{others}{The first and second moments of the random effect and vector Y}
 }
 \description{
 This functino fits left, right or intervalar censored mixed-effects linear model, with autoregressive errors of order \code{p}, using the EM algorithm. It returns estimates, standard errors and prediction of future observations.
@@ -104,7 +107,8 @@ nj=rep(4,10)
 tt=rep(1:4,length(nj))
 x<-matrix(runif(sum(nj)*length(beta),-1,1),sum(nj),length(beta))
 z<-matrix(runif(sum(nj)*dim(D)[1],-1,1),sum(nj),dim(D)[1])
-data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens)
+data=ARpMMEC.sim(m,x,z,tt,nj,beta,sigma2,D,phi,struc="ARp",typeModel="Normal",p.cens=p.cens)
+
 teste1=ARpMMEC.est(data$y_cc,x,z,tt,data$cc,nj,struc="ARp",order=1,typeModel="Normal",MaxIter = 2)
 teste2=ARpMMEC.est(data$y_cc,x,z,tt,data$cc,nj,struc="ARp",order=1,typeModel="Student",MaxIter = 2)
 

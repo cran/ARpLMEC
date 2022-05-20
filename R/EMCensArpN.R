@@ -2,12 +2,11 @@
 EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,step,isubj,xpre,zpre)
 {
   start.time <- Sys.time()
-  pb = tkProgressBar(title = "AR(p)-nLMEC by EM", min = 0,max = MaxIter, width = 300)
+  pb = tkProgressBar(title = "AR(p)-N-LMEC by EM", min = 0,max = MaxIter, width = 300)
   setTkProgressBar(pb, 0, label=paste("Iter ",0,"/",MaxIter,"     -     ",0,"% done",sep = ""))
- 
- 
-  GB = GenzBretz(maxpts = 5e4, abseps = 1e-9, releps = 0)
-  if(cens.type=="left"){
+  
+  
+   if(cens.type=="left"){
     LI=rep(-Inf,length(cc))
     LS=rep(Inf,length(cc))
     LS[cc==1]=y[cc==1]
@@ -30,7 +29,7 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
     LS=as.vector(LS)
   }
   
-
+  
   m<-length(nj)[1]
   N<-sum(nj)
   p<-dim(x)[2]
@@ -38,55 +37,78 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   m1<-m*p
   m2<-m*q1
   
- 
+  
   if(!is.null(initial)){
     beta1<-initial$betas
     sigmae<- initial$sigma2
     D1<-initial$alphas
     iD1<- solve(D1)
     iD1 <- (iD1 + t(iD1))/2
-    phis<-initial$phi
-    if(Arp!="UNC"){
-      phi = phis
-      teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
-      teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
+    
+    if(!is.null(initial$phi)){
+      if(Arp>=1){
+        piis = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
+        phi = initial$phi
+        teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
+        teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
       }
+      if(Arp=="UNC"){
+        Arp=0
+        piis = 0
+        phi = 0
+        teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
+        teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])}
+    }
+    
+    if(is.null(initial$phi)){
+      if(Arp>=1){
+        piis = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
+        phi = estphit(piis)
+        teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
+        teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)}
+      if(Arp=="UNC"){
+        Arp=0
+        piis = 0
+        phi = 0
+        teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
+        teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])}
+    }
+  }
+  
+  
+  
+  
+  if(is.null(initial)){ 
+    beta1=solve(t(x)%*%x)%*%t(x)%*%y  
+    sigmae= 0.5 
+    D1=0.1*diag(dim(z)[2])
+    iD1<- solve(D1)
+    iD1 <- (iD1 + t(iD1))/2
+    if(Arp>=1){
+      piis = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
+      phi = estphit(piis)
+      teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
+      teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)}
     if(Arp=="UNC"){
       Arp=0
-      pis = 0
+      piis = 0
       phi = 0
       teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
       teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])}
   }
   
-  if(is.null(initial)){ 
-  beta1=solve(t(x)%*%x)%*%t(x)%*%y  
-  sigmae= 0.25 
-  D1=0.1*diag(dim(z)[2])
- 
-  iD1<- solve(D1)
-  iD1 <- (iD1 + t(iD1))/2
-  if(Arp!="UNC"){
-    pis = as.numeric(pacf((y - x%*%beta1),lag.max=Arp,plot=F)$acf)
-    phi = estphit(pis)
-    teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)
-    teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],phi)}
-  if(Arp=="UNC"){
-    Arp=0
-    pis = 0
-    phi = 0
-    teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
-    teta1<- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])}
-  }
-
- 
+  
   criterio<-1
   count<-0
+  
+  loglik <- logliknArplmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,pii=piis)
+  
+  loglikp <- loglik 
   
   while(criterio > ee){
     
     count <- count + 1
-  
+    
     soma1<- matrix(0,q1,q1)
     soma2<-0
     soma3<- matrix(0,p,p)
@@ -95,7 +117,7 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
     MI <- matrix(0,p+1+length(D1[upper.tri(D1, diag = T)])+Arp,
                  p+1+length(D1[upper.tri(D1, diag = T)])+Arp) 
     
-    res <- vector(mode = "numeric", length = N)
+    
     ubi=matrix(0,m2,m)
     ubbi=matrix(0,m2,m2)
     uybi=matrix(0,N,m2)
@@ -115,17 +137,18 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
       x1=matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
       z1=matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
       
-        
+      
       
       LI1<- LI[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
       LS1<- LS[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
       gammai=x1%*%beta1
       
       
+      
       if(Arp==0){eGama=diag(1,nj[j])
       Gama=eGama*sigmae}
       if(Arp!=0){
-        Gama<- MatArp(pis,tt1,sigmae) 
+        Gama<- MatArp(piis,tt1,sigmae) 
         eGama<-Gama/sigmae
       }
       
@@ -140,43 +163,43 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
         ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
         ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
         uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-        ver[j,]<- mvtnorm::dmvnorm(as.vector(y1),gammai,Psi)
+        ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1),mu=as.vector(gammai),Sigma=Psi)
         
       }
       
       if(sum(cc1)>=1){
         
-        
+   
         if(sum(cc1)==nj[j]){
           muc=x1%*%beta1
           Sc<-Psi
-          aux<- tmvtnorm::mtmvnorm(mean=c(muc), sigma=Sc, lower=LI1, upper=LS1)
-          uy<- aux$tmean
-          uyy<- aux$tvar+uy%*%t(uy)
-          
+          aux<- relliptical::mvtelliptical(lower = as.vector(LI1),upper=as.vector(LS1),mu = as.vector(muc), Sigma =Sc,dist = "Normal")
+          uy<- aux$EY
+          uyy<- aux$EYY
           ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-          ver[j,]<- mvtnorm::pmvnorm(LI1, LS1, mean=c(muc),sigma=Sc,algorithm = GB)
+          ver[j,]<-  TruncatedNormal::pmvnorm(lb=as.vector(LI1), ub=as.vector(LS1), mu=as.vector(muc),sigma=Sc)
+         
           
         }
         
         else {
-          
           muc=x1[cc1==1,]%*%beta1+Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%(y1[cc1==0]-x1[cc1==0,]%*%beta1)
           Sc <-Psi[cc1==1,cc1==1]-Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%Psi[cc1==0,cc1==1]
-           aux<- tmvtnorm::mtmvnorm(mean=c(muc), sigma=Sc, lower=LI1[cc1==1], upper=LS1[cc1==1])
+          Sc=(Sc+t(Sc))/2
+          aux<- relliptical::mvtelliptical(lower = as.vector(LI1[cc1==1]),upper=as.vector(LS1[cc1==1]),mu = as.vector(muc), Sigma =Sc)
           uy <-matrix(y1,nj[j],1)
-          uy[cc1==1]<- aux$tmean
-          uyy<-matrix(0,nj[j],nj[j])
-           uyy[cc1==1,cc1==1]<- aux$tvar
-          uyy<- uyy+uy%*%t(uy)
+          uy[cc1==1]<- aux$EY
+          uyy<- uy%*%t(uy)
+          uyy[cc1==1,cc1==1]<- aux$EYY
           ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-          ver[j,]<- mvtnorm::dmvnorm(c(y1[cc1==0]),mean=c(gammai[cc1==0]),sigma=as.matrix(Psi[cc1==0,cc1==0]))*(mvtnorm::pmvnorm(LI1[cc1==1],LS1[cc1==1],mean=as.vector(muc),sigma=Sc,algorithm = GB))[1]
           
-            
+          ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1[cc1==0]),mu=as.vector(gammai[cc1==0]),Sigma=as.matrix(Psi[cc1==0,cc1==0]))*( TruncatedNormal::pmvnorm(lb=as.vector(LI1[cc1==1]),ub=as.vector(LS1[cc1==1]),mu=as.vector(muc),sigma=Sc))[1]
+          
+          
         }
         
       }
@@ -212,42 +235,33 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
     iD1<- solve(D1) 
     teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
     if(Arp!=0){
-      pis <- optim(pis, method = "L-BFGS-B", FCiArp, lower =rep(-.999,Arp), upper =rep(.999,Arp), beta1=beta1,sigmae=sigmae, ubi=ubi,ubbi=ubbi,uybi=uybi,uyyi=uyyi,uyi=uyi,x=x,z=z,tt=tt,nj=nj,hessian=TRUE)$par
-      phi=estphit(pis) 
+      piis <- optim(piis, method = "L-BFGS-B", FCiArp, lower =rep(-.999,Arp), upper =rep(.999,Arp), beta1=beta1,sigmae=sigmae, ubi=ubi,ubbi=ubbi,uybi=uybi,uyyi=uyyi,uyi=uyi,x=x,z=z,tt=tt,nj=nj,hessian=TRUE)$par
+      phi=estphit(piis) 
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)], phi)  }
     if(Arp==0){phi=0}
     
-   
-    logver <- sum(log(ver))
-
     varbeta<-solve(soma5)
+    logver <- sum(log(ver))
     
-   
     
-    if (count>=1){
-      criterio <- sqrt((teta1/teta-1)%*%(teta1/teta-1))
+    loglik <- logliknArplmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,pii=piis)
+    loglikp1 <- loglik 
+    
+    
+    
+    if(count > 1){
+      criterio <- sqrt(((loglikp1/loglikp)-1)%*%((loglikp1/loglikp)-1))
       setTkProgressBar(pb, count, label=paste("Iter ",count,"/",MaxIter,"     -     ",floor((count)/(MaxIter)*100),"% done",sep = ""))
+    }    
+    if(count==MaxIter){criterio <- 0.0000000000001}
     
-      }
     
-    if (count==MaxIter){
-      criterio <- 0.0000000000001
-    }
     
-    teta<-teta1
-    logver1<-logver
+    teta <- teta1
+    loglikp <- loglikp1
     
-  }
-  
-  
-  for (k in 1:length(nj)) 
-  {tc<-tt[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
-  if(Arp=="UNC"){Mq<-diag(1,length(tc))}
-  if(Arp!="UNC"){Mq<- MatArpJ(phi,tc,sigmae)}
-   res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
-                                                                    (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
-                                                                                                : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
-                                                                                                                                                                         -x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1)) 
+ 
+    
   }
   
   dd<-D1[upper.tri(D1, diag = T)]
@@ -256,50 +270,50 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   
   ni<-sum(nj)
   
-  loglik<-logver1
+  loglik<-loglikp
   
   AICc<- -2*loglik +2*npar
   AICcorr<- AICc + ((2*npar*(npar+1))/(ni-npar-1))
   BICc <- -2*loglik +log(ni)*npar
   
   if(Prev){ contt=0
-    Predicao<- matrix(0,length(isubj),1+step)
-    for (j in isubj ){
-     
-      contt=contt+1
-      IndPred=c(rep(0,nj[j]),rep(1,step))
-      xobs=x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ]
-      xprei=xpre[(step*contt-(step-1)) : (step*contt),  ]
-      xobspre=rbind(xobs,xprei)
-      
-      zobs=z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ]
-      zprei=zpre[(step*contt-(step-1)) : (step*contt),  ]
-      zobspre=rbind(zobs,zprei)
-      
-      gammai = xobs%*%beta1
-      yobs=uyi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),j]
-      tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
-      
-      if(Arp==0){ Gama=diag(1,nj[j]+step)*sigmae}
-      if(Arp!=0){ tt1=c(tt1, tt1[nj[j]]+seq(1:step))
-        Gama<- MatArp(pis,tt1,sigmae)}
-      PsiPred<-(Gama+(zobspre)%*%t(D1)%*%t(zobspre))
-      Aux1Pred <- xprei%*%beta1
-      Aux2Pred <- PsiPred[IndPred==1,IndPred==0]%*%solve(PsiPred[IndPred==0,IndPred==0])
-      Aux3Pred <- (yobs-gammai)
-      
-         Predicao[contt,1] <- j               
-        Predicao[contt,2:(step+1)] <- Aux1Pred + Aux2Pred%*%Aux3Pred               
-      
-    }
-    Predicao=as.data.frame(Predicao)
-    colnames(Predicao) = c("subj",paste("step",1:step))
+  Predicao<- matrix(0,length(isubj),1+step)
+  for (j in isubj ){
+    
+    contt=contt+1
+    IndPred=c(rep(0,nj[j]),rep(1,step))
+    xobs=x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ]
+    xprei=xpre[(step*contt-(step-1)) : (step*contt),  ]
+    xobspre=rbind(xobs,xprei)
+    
+    zobs=z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ]
+    zprei=zpre[(step*contt-(step-1)) : (step*contt),  ]
+    zobspre=rbind(zobs,zprei)
+    
+    gammai = xobs%*%beta1
+    yobs=uyi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),j]
+    tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    
+    if(Arp==0){ Gama=diag(1,nj[j]+step)*sigmae}
+    if(Arp!=0){ tt1=c(tt1, tt1[nj[j]]+seq(1:step))
+    Gama<- MatArp(piis,tt1,sigmae)}
+    PsiPred<-(Gama+(zobspre)%*%t(D1)%*%t(zobspre))
+    Aux1Pred <- xprei%*%beta1
+    Aux2Pred <- PsiPred[IndPred==1,IndPred==0]%*%solve(PsiPred[IndPred==0,IndPred==0])
+    Aux3Pred <- (yobs-gammai)
+    
+    Predicao[contt,1] <- j               
+    Predicao[contt,2:(step+1)] <- Aux1Pred + Aux2Pred%*%Aux3Pred               
+    
+  }
+  Predicao=as.data.frame(Predicao)
+  colnames(Predicao) = c("subj",paste("step",1:step))
   }
   if(!Prev){Predicao=NULL}
-
-  SE=round(sqrt(diag(ginv(MI))),3)
+  
+  SE=round(sqrt(diag(solve(MI))),3)
   intPar=round(1.96*SE,3)
-
+  
   tableB  = data.frame(round(beta1,3),SE[1:p],paste("<",round(beta1,3)-round(intPar[1:p],3),",",round(beta1,3)+round(intPar[1:p],3),">"))
   rownames(tableB) = paste("beta",1:p)
   colnames(tableB) = c("Est","SE","IConf(95%)")
@@ -311,9 +325,9 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   colnames(tableS) = c("Est","SE","IConf(95%)")
   
   if(Arp!=0){
-  tableP  = data.frame(round(phi,3),SE[(p+2):(p+1+Arp)],paste("<",round(phi,3)-round(intPar[(p+2):(p+1+Arp)],3),",",round(phi,3)+round(intPar[(p+2):(p+1+Arp)],3),">"))
-  rownames(tableP) = paste("Phi",1:Arp)
-  colnames(tableP) = c("Est","SE","IConf(95%)")
+    tableP  = data.frame(round(phi,3),SE[(p+2):(p+1+Arp)],paste("<",round(phi,3)-round(intPar[(p+2):(p+1+Arp)],3),",",round(phi,3)+round(intPar[(p+2):(p+1+Arp)],3),">"))
+    rownames(tableP) = paste("Phi",1:Arp)
+    colnames(tableP) = c("Est","SE","IConf(95%)")
   }
   if(Arp==0){ phi=NULL; tableP =NULL }
   
@@ -332,12 +346,34 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   
   
   
+  res <-fitY<- vector(mode = "numeric", length = sum(nj))
+  Di <- matrix(0,dim(z)[2],dim(z)[2]) 
+  Di[upper.tri(Di, diag = T)] <- dd
+  Di[lower.tri(Di, diag = T)] <- dd
+  Di      <- round(Di,6)
+  for (k in 1:length(nj)) 
+  {tc<-tt[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+  if(Arp=="UNC"){Mq<-diag(1,length(tc))}
+  if(Arp!="UNC"){Mq<- MatArpJ(phi,tc,sigmae)}
+  Sii<-solve(round(z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%Di%*%t(z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),])+sigmae*Mq,6))
+  yyii<-yorg[(sum(nj[1:k-1])+1) :(sum(nj[1:k]))]-x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1
+  res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=sqrtm(Sii)%*%(yyii)
+  fitY[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]= x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1+
+    z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%ubi[(((k-1)*2)+1) : (k*2),k]
+  }                                                                                                                               
+  
+  
+  
+  
+  
+  
+  
   end.time <- Sys.time()
   time.taken <- end.time - start.time
   
   obj.out <- list(beta1 = beta1, sigmae= sigmae, phi=phi, dd = dd, loglik=loglik,
                   AIC=AICc, BIC=BICc, AICcorr=AICcorr, iter = count, varbeta=varbeta,
-                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI, yog=yorg,residuals=res,
+                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI, yorg=yorg,residuals=res,yfit=fitY,
                   Prev= Predicao, time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
                   tableA=tableA)
   
@@ -364,10 +400,9 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
 EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Prev,step,isubj,xpre,zpre)
 {
   start.time <- Sys.time()
-  pb = tkProgressBar(title = "DEC-nLMEC by EM", min = 0,max = MaxIter, width = 300)
+  pb = tkProgressBar(title = "DEC-N-LMEC by EM", min = 0,max = MaxIter, width = 300)
   setTkProgressBar(pb, 0, label=paste("Iter ",0,"/",MaxIter,"     -     ",0,"% done",sep = ""))
   
-  GB = GenzBretz(maxpts = 5e4, abseps = 1e-9, releps = 0)
   if(cens.type=="left"){
     LI=rep(-Inf,length(cc))
     LS=rep(Inf,length(cc))
@@ -396,6 +431,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
   count<-0
   
   
+  
   if(struc=="DEC"){
     
     p<-dim(x)[2]
@@ -409,18 +445,22 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       D1<-initial$alphas
       iD1<- solve(D1)
       iD1 <- (iD1 + t(iD1))/2
-      phi1 <- initial$phi1
-      phi2 <- initial$phi2
+      if(!is.null(initial$phi1)){
+        phi1 <- initial$phi1
+        phi2 <- initial$phi2}
+      if(is.null(initial$phi1)){
+        phi1 <- 0.1
+        phi2 <- 1}
     }
     
     if(is.null(initial)){ 
       beta1=solve(t(x)%*%x)%*%t(x)%*%y  
-      sigmae= 0.25 
+      sigmae=  0.25 
       D1=0.1*diag(dim(z)[2])
       iD1<- solve(D1)
       iD1 <- (iD1 + t(iD1))/2
-      phi1 <- 0.5
-      phi2 <- 0.1
+      phi1 <- 0.1
+      phi2 <- 1
     }
     
     rho= phi1
@@ -435,6 +475,10 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     m2<-m*q1
     
     ubi=matrix(0,m2,m)
+    
+    loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=phi1,phi2=phi2,struc=struc)
+    
+    loglikp <- loglik 
     
     criterio<-1
     count<-0
@@ -460,7 +504,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       yhi=matrix(0,N,1)
       xi=matrix(0,N,m1)
       zi=matrix(0,N,m2) 
-       ver<-matrix(0,m,1)
+      ver<-matrix(0,m,1)
       
       for (j in 1:m ){
         
@@ -476,6 +520,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         Gama<- MatAr1(tt1,rho,gamma,sigmae)
         eGama<-Gama/sigmae
         Psi<-(Gama+(z1)%*%D1%*%t(z1))
+        Psi<-(Psi+t(Psi))/2
         delta<- solve(iD1+(t(z1)%*%solve(eGama)%*%(z1*(1/sigmae))))
         
         if(sum(cc1)==0){
@@ -484,7 +529,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
           ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-          ver[j,]<- dmvnorm(as.vector(y1),gammai,Psi)
+          ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1),mu=as.vector(gammai),Sigma=Psi)
           
         }
         
@@ -494,33 +539,32 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
             
             muc=x1%*%beta1
             Sc<-Psi
-            aux<- MomemNT(muc,Sc,y1)
-            uy<-aux$Ey
-            uyy<- aux$Eyy
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1),upper=as.vector(LS1),mu = as.vector(muc), Sigma =Sc)
+            uy<- aux$EY
+            uyy<- aux$EYY
             ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
             ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
             uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-pmnorm(y1,as.vector(muc),Sc)
+           
+            ver[j,]<-  TruncatedNormal::pmvnorm(lb=as.vector(LI1), ub=as.vector(LS1), mu=c(muc),sigma=Sc)
+            
             
           }
           
           else {
-            
             muc=x1[cc1==1,]%*%beta1+Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%(y1[cc1==0]-x1[cc1==0,]%*%beta1)
             Sc <-Psi[cc1==1,cc1==1]-Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%Psi[cc1==0,cc1==1]
             Sc=(Sc+t(Sc))/2
-            aux <-MomemNT(muc,Sc,y1[cc1==1])
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1[cc1==1]),upper=as.vector(LS1[cc1==1]),mu = as.vector(muc), Sigma =Sc)
             uy <-matrix(y1,nj[j],1)
-            uy[cc1==1]<-aux$Ey
-            
-            uyy<-matrix(0,nj[j],nj[j])
-            uyy[cc1==1,cc1==1]<-aux$Vary
-            uyy<- uyy+uy%*%t(uy)
+            uy[cc1==1]<- aux$EY
+            uyy<- uy%*%t(uy)
+            uyy[cc1==1,cc1==1]<- aux$EYY
             ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
             ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
             uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-dmnorm(y1[cc1==0],gammai[cc1==0],round(Psi[cc1==0,cc1==0],7))*pmnorm(y1[cc1==1],as.vector(muc),Sc)
-            
+           
+            ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1[cc1==0]),mu=as.vector(gammai[cc1==0]),Sigma=as.matrix(Psi[cc1==0,cc1==0]))*( TruncatedNormal::pmvnorm(lb=as.vector(LI1[cc1==1]),ub=as.vector(LS1[cc1==1]),mu=as.vector(muc),sigma=Sc))[1]
           }
           
         }
@@ -544,7 +588,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         dsigma <- -(1/2)*((nj[j]/sigmae)-(1/sigmae^2)*((sum(diag(uyy%*%solve(eGama)))-t(uy)%*%solve(eGama)%*%gammai-t(gammai)%*%solve(eGama)%*%uy-sum(diag(solve(eGama)%*%((uyb)%*%t(z1))))-sum(diag(solve(eGama)%*%((uyb)%*%t(z1))))
                                                         +t(gammai)%*%solve(eGama)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(eGama)%*%gammai+t(gammai)%*%solve(eGama)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(eGama)%*%z1)))))
         
-         
+        
         Dp <- DevEiAr1(tt1,rho,gamma,sigmae) 
         Dpr <- Dp$devR_r
         Dpg <- Dp$devR_g
@@ -584,25 +628,22 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       gamma<-rhos[2]
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],rho,gamma)
       teta1crit <- c(beta1,sigmae)
+      varbeta<-solve(soma5)
       logver <- sum(log(ver))
-        varbeta<-solve(soma5)
       
+      loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=rho,phi2=gamma,struc=struc)
       
+      loglikp1 <- loglik     
       
-      
-      
-      if (count>=1){
-        criterio <- sqrt((teta1crit/tetacrit-1)%*%(teta1crit/tetacrit-1))
+      if(count > 1){
+        criterio <- sqrt(((loglikp1/loglikp)-1)%*%((loglikp1/loglikp)-1))
         setTkProgressBar(pb, count, label=paste("Iter ",count,"/",MaxIter,"     -     ",floor((count)/(MaxIter)*100),"% done",sep = ""))
-        
-      }
+      }    
+      if(count==MaxIter){criterio <- 0.0000000000001}
       
-      if (count==MaxIter){
-        criterio <- 0.0000000000001
-      }
+      teta <- teta1
+      loglikp <- loglikp1
       
-      
-      teta<-teta1
       tetacrit <- teta1crit
       logver1<-logver
       
@@ -620,8 +661,13 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       D1<-initial$alphas
       iD1<- solve(D1)
       iD1 <- (iD1 + t(iD1))/2
-      phi1 <- initial$phi1
-      phi2 <- 1
+      if(!is.null(initial$phi1)){
+        phi1 <- initial$phi1
+        phi2 <- 1}
+      if(is.null(initial$phi1)){
+        phi1 <- 0.1
+        phi2 <- 1}
+      
     }
     if(is.null(initial)){ 
       beta1=solve(t(x)%*%x)%*%t(x)%*%y  
@@ -642,6 +688,10 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     m2<-m*q1
     
     ubi=matrix(0,m2,m)
+    
+    loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=phi1,phi2=phi2,struc=struc)
+    
+    loglikp <- loglik 
     
     criterio<-1
     count<-0
@@ -691,23 +741,24 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
           ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-          ver[j,]<- dmvnorm(as.vector(y1),gammai,Psi)
+          ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1),mu=as.vector(gammai),Sigma=Psi)
           
         }
         
         if(sum(cc1)>=1){
           
           if(sum(cc1)==nj[j]){
-            
             muc=x1%*%beta1
             Sc<-Psi
-            aux<- MomemNT(muc,Sc,y1)
-            uy<-aux$Ey
-            uyy<- aux$Eyy
+            Sc=(Sc+t(Sc))/2
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1),upper=as.vector(LS1),mu = as.vector(muc), Sigma =Sc)
+            uy<- aux$EY
+            uyy<- aux$EYY
             ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
             ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
             uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-pmnorm(y1,as.vector(muc),Sc)
+            ver[j,]<-  TruncatedNormal::pmvnorm(lb=as.vector(LI1), ub=as.vector(LS1), mu=as.vector(muc),sigma=Sc)
+            
             
           }
           
@@ -716,17 +767,17 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
             muc=x1[cc1==1,]%*%beta1+Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%(y1[cc1==0]-x1[cc1==0,]%*%beta1)
             Sc <-Psi[cc1==1,cc1==1]-Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%Psi[cc1==0,cc1==1]
             Sc=(Sc+t(Sc))/2
-            aux <-MomemNT(muc,Sc,y1[cc1==1])
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1[cc1==1]),upper=as.vector(LS1[cc1==1]),mu = as.vector(muc), Sigma =Sc)
             uy <-matrix(y1,nj[j],1)
-            uy[cc1==1]<-aux$Ey
-            
-            uyy<-matrix(0,nj[j],nj[j])
-            uyy[cc1==1,cc1==1]<-aux$Vary
-            uyy<- uyy+uy%*%t(uy)
+            uy[cc1==1]<- aux$EY
+            uyy<- uy%*%t(uy)
+            uyy[cc1==1,cc1==1]<- aux$EYY
             ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
             ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
             uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-dmnorm(y1[cc1==0],gammai[cc1==0],round(Psi[cc1==0,cc1==0],7))*pmnorm(y1[cc1==1],as.vector(muc),Sc)
+            
+            ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1[cc1==0]),mu=as.vector(gammai[cc1==0]),Sigma=as.matrix(Psi[cc1==0,cc1==0]))*( TruncatedNormal::pmvnorm(lb=as.vector(LI1[cc1==1]),ub=as.vector(LS1[cc1==1]),mu=as.vector(muc),sigma=Sc))[1]
+            
             
           }
           
@@ -783,24 +834,24 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       rho<-rhos[1]
       gamma<-1
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],rho)
-      teta1crit <- c(beta1,sigmae)
-    
-      logver <- sum(log(ver))
-     
       varbeta<-solve(soma5)
+      logver <- sum(log(ver))
       
+      teta1crit <- c(beta1,sigmae)
       
-      if (count>=1){
-        criterio <- sqrt((teta1crit/tetacrit-1)%*%(teta1crit/tetacrit-1))
+      loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=rho,phi2=gamma,struc=struc)
+      
+      loglikp1 <- loglik     
+      
+      if(count > 1){
+        criterio <- sqrt(((loglikp1/loglikp)-1)%*%((loglikp1/loglikp)-1))
         setTkProgressBar(pb, count, label=paste("Iter ",count,"/",MaxIter,"     -     ",floor((count)/(MaxIter)*100),"% done",sep = ""))
-        
-      }
+      }    
+      if(count==MaxIter){criterio <- 0.0000000000001}
       
-      if (count==MaxIter){
-        criterio <- 0.0000000000001
-      }
+      teta <- teta1
+      loglikp <- loglikp1
       
-      teta<-teta1
       tetacrit <- teta1crit
       logver1<-logver
       
@@ -819,8 +870,12 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       D1<-initial$alphas
       iD1<- solve(D1)
       iD1 <- (iD1 + t(iD1))/2
-      phi1 <- initial$phi1
-      phi2 <- 0
+      if(!is.null(initial$phi1)){
+        phi1 <- initial$phi1
+        phi2 <- 0}
+      if(is.null(initial$phi1)){
+        phi1 <- 0.1
+        phi2 <- 0}
     }
     
     if(is.null(initial)){ 
@@ -847,14 +902,16 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     m2<-m*q1
     
     ubi=matrix(0,m2,m)  
+    loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=phi1,phi2=phi2,struc=struc)
     
+    loglikp <- loglik 
     criterio<-1
     count<-0
     
     while(criterio >ee){
       
       count <- count + 1
-    
+      
       soma1<-matrix(0,q1,q1)
       soma2<-0
       soma3<-matrix(0,p,p)
@@ -901,7 +958,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
           ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-          ver[j,]<- dmvnorm(as.vector(y1),gammai,Psi)
+          ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1),mu=as.vector(gammai),Sigma=Psi)
           
         }
         
@@ -912,32 +969,31 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
             muc=x1%*%beta1
             Sc<-Psi
             Sc=(Sc+t(Sc))/2
-            aux<- MomemNT(muc,Sc,y1)
-            uy<-aux$Ey
-            uyy<- aux$Eyy
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1),upper=as.vector(LS1),mu = as.vector(muc), Sigma =Sc)
+            uy<- aux$EY
+            uyy<- aux$EYY
             ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
             ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
             uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-pmnorm(y1,as.vector(muc),Sc)
+            ver[j,]<-TruncatedNormal::pmvnorm(lb=as.vector(LI1), ub=as.vector(LS1), mu=as.vector(muc),sigma=Sc)
             
           }
           
           else {
-            
             muc=x1[cc1==1,]%*%beta1+Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%(y1[cc1==0]-x1[cc1==0,]%*%beta1)
             Sc <-Psi[cc1==1,cc1==1]-Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%Psi[cc1==0,cc1==1]
             Sc=(Sc+t(Sc))/2
-            aux <-MomemNT(muc,Sc,y1[cc1==1])
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1[cc1==1]),upper=as.vector(LS1[cc1==1]),mu = as.vector(muc), Sigma =Sc)
             uy <-matrix(y1,nj[j],1)
-            uy[cc1==1]<-aux$Ey
-            
-            uyy<-matrix(0,nj[j],nj[j])
-            uyy[cc1==1,cc1==1]<-aux$Vary
-            uyy<- uyy+uy%*%t(uy)
+            uy[cc1==1]<- aux$EY
+            uyy<- uy%*%t(uy)
+            uyy[cc1==1,cc1==1]<- aux$EYY
             ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
             ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
             uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-dmnorm(y1[cc1==0],gammai[cc1==0],round(Psi[cc1==0,cc1==0],7))*pmnorm(y1[cc1==1],as.vector(muc),Sc)
+            
+             ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1[cc1==0]),mu=as.vector(gammai[cc1==0]),Sigma=as.matrix(Psi[cc1==0,cc1==0]))*( TruncatedNormal::pmvnorm(lb=as.vector(LI1[cc1==1]),ub=as.vector(LS1[cc1==1]),mu=as.vector(muc),sigma=Sc))[1]
+            
             
           }
           
@@ -960,7 +1016,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
         xi[(sum(nj[1:j-1])+1) : (sum(nj[1:j])), (((j-1)*p)+1) : (j*p)]<-x1
         
         dbeta <- (1/sigmae)*((t(x1)%*%solve(eGama)%*%(uy-z1%*%ub)) - (t(x1)%*%solve(eGama)%*%x1)%*%beta1)
-       
+        
         dsigma <- -(1/2)*((nj[j]/sigmae)-(1/sigmae^2)*((sum(diag(uyy%*%solve(eGama)))-t(uy)%*%solve(eGama)%*%gammai-t(gammai)%*%solve(eGama)%*%uy-sum(diag(solve(eGama)%*%((uyb)%*%t(z1))))-sum(diag(solve(eGama)%*%((uyb)%*%t(z1))))
                                                         +t(gammai)%*%solve(eGama)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(eGama)%*%gammai+t(gammai)%*%solve(eGama)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(eGama)%*%z1)))))
         
@@ -998,23 +1054,21 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       gamma<-0
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],rho)
       teta1crit <- c(beta1,sigmae)
-   
-      logver <- sum(log(ver))
-      
       varbeta<-solve(soma5)
+      logver <- sum(log(ver))
+      loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=rho,phi2=gamma,struc=struc)
       
+      loglikp1 <- loglik     
       
-      if (count>=1){
-        criterio <- sqrt((teta1crit/tetacrit-1)%*%(teta1crit/tetacrit-1))
+      if(count > 1){
+        criterio <- sqrt(((loglikp1/loglikp)-1)%*%((loglikp1/loglikp)-1))
         setTkProgressBar(pb, count, label=paste("Iter ",count,"/",MaxIter,"     -     ",floor((count)/(MaxIter)*100),"% done",sep = ""))
-        
-      }
+      }    
+      if(count==MaxIter){criterio <- 0.0000000000001}
       
-      if (count==MaxIter){
-        criterio <- 0.0000000000001
-      }
+      teta <- teta1
+      loglikp <- loglikp1
       
-      teta<-teta1
       tetacrit <- teta1crit
       logver1<-logver
       
@@ -1055,14 +1109,16 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     m2<-m*q1
     
     ubi=matrix(0,m2,m)  
+    loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=phi1,phi2=phi2,struc=struc)
     
+    loglikp <- loglik 
     criterio<-1
     count<-0
     
     while(criterio > ee){
       
       count <- count + 1
-   
+      
       soma1<-matrix(0,q1,q1)
       soma2<-0
       soma3<-matrix(0,p,p)
@@ -1107,7 +1163,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
           ub<- delta%*%(t(z1)*(1/sigmae))%*%(uy-gammai)
           ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%z1%*%delta)
           uyb<- (uyy-uy%*%t(gammai))%*%(z1*(1/sigmae))%*%delta
-          ver[j,]<- dmvnorm(as.vector(y1),gammai,Psi)
+          ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1),mu=as.vector(gammai),Sigma=Psi)
           
         }
         
@@ -1119,31 +1175,32 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
           if(sum(cc1)==nj[j]){
             muc=x1%*%beta1
             Sc<-Psi
-            delta<- solve(iD1+(t(z1)%*%((z1*(1/sigmae)))))
-            aux<- MomemNT(muc,Sc,y1)
-            uy<-aux$Ey
-            uyy<- aux$Eyy
-            ub<- delta%*%(t(z1)*(1/sigmae))%*%(uy-gammai)
-            ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%z1%*%delta)
-            uyb<- (uyy-uy%*%t(gammai))%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-pmnorm(y1,as.vector(muc),Sc)
+            Sc=(Sc+t(Sc))/2
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1),upper=as.vector(LS1),mu = as.vector(muc), Sigma =Sc)
+            uy<- aux$EY
+            uyy<- aux$EYY
+            ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
+            ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
+            uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
+            
+            ver[j,]<-  TruncatedNormal::pmvnorm(lb=as.vector(LI1),ub= as.vector(LS1), mu=c(muc),sigma=Sc)
+            
           }
           
           else {
             muc=x1[cc1==1,]%*%beta1+Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%(y1[cc1==0]-x1[cc1==0,]%*%beta1)
             Sc <-Psi[cc1==1,cc1==1]-Psi[cc1==1,cc1==0]%*%solve(Psi[cc1==0,cc1==0])%*%Psi[cc1==0,cc1==1]
-            delta<- solve(iD1+(t(z1)%*%((z1*(1/sigmae)))))
-            aux <-MomemNT(muc,Sc,y1[cc1==1])
+            Sc=(Sc+t(Sc))/2
+            aux<- relliptical::mvtelliptical(lower = as.vector(LI1[cc1==1]),upper=as.vector(LS1[cc1==1]),mu = as.vector(muc), Sigma =Sc)
             uy <-matrix(y1,nj[j],1)
-            uy[cc1==1]<-aux$Ey
-            
-            uyy<-matrix(0,nj[j],nj[j])
-            uyy[cc1==1,cc1==1]<-aux$Vary
-            uyy<- uyy+uy%*%t(uy)
-            ub<- delta%*%(t(z1)*(1/sigmae))%*%(uy-gammai)
-            ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%z1%*%delta)
-            uyb<- (uyy-uy%*%t(gammai))%*%(z1*(1/sigmae))%*%delta
-            ver[j,]<-dmvnorm(y1[cc1==0],gammai[cc1==0],as.matrix(Psi[cc1==0,cc1==0]))*pmnorm(y1[cc1==1],as.vector(muc),Sc)
+            uy[cc1==1]<- aux$EY
+            uyy<- uy%*%t(uy)
+            uyy[cc1==1,cc1==1]<- aux$EYY
+            ub<- delta%*%(t(z1)*(1/sigmae))%*%solve(eGama)%*%(uy-gammai)
+            ubb<- delta+(delta%*%(t(z1)*((1/sigmae)^2))%*%solve(eGama)%*%(uyy-uy%*%t(gammai)-gammai%*%t(uy)+gammai%*%t(gammai))%*%solve(eGama)%*%z1%*%delta)
+            uyb<- (uyy-uy%*%t(gammai))%*%solve(eGama)%*%(z1*(1/sigmae))%*%delta
+            ver[j,]<- LaplacesDemon::dmvn(x=as.vector(y1[cc1==0]),mu=as.vector(gammai[cc1==0]),Sigma=as.matrix(Psi[cc1==0,cc1==0]))*( TruncatedNormal::pmvnorm(lb=as.vector(LI1[cc1==1]),up=as.vector(LS1[cc1==1]),mu=as.vector(muc),sigma=Sc))[1]
+            uyy<- matrix(0,nj[j],nj[j])
           }
           
         }
@@ -1191,22 +1248,22 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
       
       teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
       teta1crit <- c(beta1,sigmae)
-      
- 
+      varbeta<-solve(soma5)
       logver <- sum(log(ver))
       
-      varbeta<-solve(soma5)
+      loglik <- logliknslmec(y=y,x=x,z=z,cc=cc,ttc=tt,nj=nj,LL=LI,LU=LS,betas=beta1,sigmae=sigmae,D1=D1,phi1=rho,phi2=gamma,struc=struc)
       
-      if (count>=1){
-        criterio <- sqrt((teta1crit/tetacrit-1)%*%(teta1crit/tetacrit-1))
+      loglikp1 <- loglik     
+      
+      if(count > 1){
+        criterio <- sqrt(((loglikp1/loglikp)-1)%*%((loglikp1/loglikp)-1))
         setTkProgressBar(pb, count, label=paste("Iter ",count,"/",MaxIter,"     -     ",floor((count)/(MaxIter)*100),"% done",sep = ""))
-      }
+      }    
+      if(count==MaxIter){criterio <- 0.0000000000001}
       
-      if (count==MaxIter){
-        criterio <- 0.0000000000001
-      }
+      teta <- teta1
+      loglikp <- loglikp1
       
-      teta<-teta1
       tetacrit <- teta1crit
       logver1<-logver
       
@@ -1216,17 +1273,6 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     }		
   } 
   
-
-  for (k in 1:length(nj)) 
-  {tc<-tt[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
-  if(struc=="DEC(AR)"){Mq<- MatDec(tc,rho,gamma,"DEC(AR)")}
-  if(struc=="SYM"){Mq<-  MatDec(tc,rho,gamma,"SYM")}
-  if(struc=="DEC"){Mq<-  MatDec(tc,rho,gamma,"DEC")}
-  res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
-                                                                  (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
-                                                                                              : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
-                                                                                                                                    -x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1)) 
-  }
   
   dd<-D1[upper.tri(D1, diag = T)]
   
@@ -1239,7 +1285,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
   AICc<- -2*loglik +2*npar
   AICcorr<- AICc + ((2*npar*(npar+1))/(ni-npar-1))
   BICc <- -2*loglik +log(ni)*npar
-  
+  MI<-round((MI+t(MI))/2,6)
   SE=round(sqrt(diag(ginv(MI))),3)
   intPar=round(1.96*SE,3)
   
@@ -1254,7 +1300,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
   colnames(tableS) = c("Est","SE","IConf(95%)")
   
   if(struc=="DEC"){
-     phi=c(gamma,rho)  
+    phi=c(gamma,rho)  
     tableP  = data.frame(round(phi,3),SE[(p+2):(p+1+2)],paste("<",round(phi,3)-round(intPar[(p+2):(p+1+2)],3),",",round(phi,3)+round(intPar[(p+2):(p+1+2)],3),">"))
     rownames(tableP) = paste("Phi",1:2)
     colnames(tableP) = c("Est","SE","IConf(95%)")
@@ -1288,13 +1334,35 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
   
   
   
+  
+  res <-fitY<- vector(mode = "numeric", length = sum(nj))
+  Di <- matrix(0,dim(z)[2],dim(z)[2]) 
+  Di[upper.tri(Di, diag = T)] <- dd
+  Di[lower.tri(Di, diag = T)] <- dd
+  Di      <- round(Di,6)
+  for (k in 1:length(nj)) 
+  {
+    tc<-tt[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
+    if(struc=="DEC") Mq<- MatDec(tc,phi[1],phi[2],"DEC")
+    if(struc=="DEC(AR)") Mq<- MatDec(tc,phi[1],1,"DEC(AR)")
+    if(struc=="SYM") Mq<- MatDec(tc,phi[1],0,"SYM")
+    if(struc=="UNC") Mq<- MatDec(tc,phi1=NULL,phi2=NULL,"UNC")
+    Sii<-ginv(round(z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%Di%*%t(z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),])+sigmae*Mq,6))
+    yyii<-yorg[(sum(nj[1:k-1])+1) :(sum(nj[1:k]))]-x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1
+    res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=sqrtm(Sii)%*%(yyii)
+    fitY[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]= x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1+
+      z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%ubi[(((k-1)*2)+1) : (k*2),k]
+  }                                                                                                                               
+  
+  
   end.time <- Sys.time()
   time.taken <- end.time - start.time
-
+  
   obj.out <- list(beta1 = beta1, sigmae= sigmae, phi=phi, dd = dd, loglik=loglik,
                   AIC=AICc, BIC=BICc, AICcorr=AICcorr, iter = count, varbeta=varbeta,
-                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI, yog =yorg,residuals=res,
-                 time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
+                  ubi = ubi, ubbi = ubbi, uybi = uybi, uyi = uyi, uyyi = uyyi , MI=MI, 
+                  yorg =yorg,residuals=res,yfit=fitY,
+                  time=time.taken, SE=SE,tableB=tableB,tableS=tableS,tableP=tableP,
                   tableA=tableA)
   
   
@@ -1315,3 +1383,5 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
   return(obj.out)
   
 }
+
+

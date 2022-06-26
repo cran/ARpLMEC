@@ -1,4 +1,6 @@
 
+
+
 EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,step,isubj,xpre,zpre)
 {
   start.time <- Sys.time()
@@ -143,7 +145,7 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
       LS1<- LS[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
       gammai=x1%*%beta1
       
-      
+   
       
       if(Arp==0){eGama=diag(1,nj[j])
       Gama=eGama*sigmae}
@@ -234,6 +236,7 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
     D1<- (1/m)*(soma1)
     iD1<- solve(D1) 
     teta1 <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)])
+    
     if(Arp!=0){
       piis <- optim(piis, method = "L-BFGS-B", FCiArp, lower =rep(-.999,Arp), upper =rep(.999,Arp), beta1=beta1,sigmae=sigmae, ubi=ubi,ubbi=ubbi,uybi=uybi,uyyi=uyyi,uyi=uyi,x=x,z=z,tt=tt,nj=nj,hessian=TRUE)$par
       phi=estphit(piis) 
@@ -359,15 +362,10 @@ EMCensArpN<-function(cc,y,x,z,tt,nj,Arp,initial,cens.type,LI,LS,MaxIter,ee,Prev,
   yyii<-yorg[(sum(nj[1:k-1])+1) :(sum(nj[1:k]))]-x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1
   res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=sqrtm(Sii)%*%(yyii)
   fitY[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]= x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1+
-    z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%ubi[(((k-1)*2)+1) : (k*2),k]
-  }                                                                                                                               
+  z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%as.matrix(ubi[(((k-1)*q1)+1) : (k*q1),k])
+  }   
   
-  
-  
-  
-  
-  
-  
+
   end.time <- Sys.time()
   time.taken <- end.time - start.time
   
@@ -682,10 +680,7 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     gamma<-phi2 
     teta <- c(beta1,sigmae,D1[upper.tri(D1, diag = T)],rho)
     tetacrit <- c(beta1,sigmae)
-    q1<-dim(D1)[2]
-    p<-length(beta1)  
-    m1<-m*p
-    m2<-m*q1
+
     
     ubi=matrix(0,m2,m)
     
@@ -1306,13 +1301,13 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     colnames(tableP) = c("Est","SE","IConf(95%)")
   }
   if(struc=="DEC(AR)"){
-    phi=gamma  
+    phi=rho  
     tableP  = data.frame(round(phi,3),SE[(p+2):(p+1+1)],paste("<",round(phi,3)-round(intPar[(p+2):(p+1+1)],3),",",round(phi,3)+round(intPar[(p+2):(p+1+1)],3),">"))
     rownames(tableP) = paste("Phi",1)
     colnames(tableP) = c("Est","SE","IConf(95%)")
   }
   if(struc=="SYM"){
-    phi=gamma  
+    phi=rho  
     tableP  = data.frame(round(phi,3),SE[(p+2):(p+1+1)],paste("<",round(phi,3)-round(intPar[(p+2):(p+1+1)],3),",",round(phi,3)+round(intPar[(p+2):(p+1+1)],3),">"))
     rownames(tableP) = paste("Phi",1)
     colnames(tableP) = c("Est","SE","IConf(95%)")
@@ -1351,10 +1346,10 @@ EMCensDECN<-function(cc,y,x,z,tt,nj,struc,initial,cens.type,LI,LS,MaxIter,ee,Pre
     yyii<-yorg[(sum(nj[1:k-1])+1) :(sum(nj[1:k]))]-x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1
     res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=sqrtm(Sii)%*%(yyii)
     fitY[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]= x[(sum(nj[1:k-1])+1) : (sum(nj[1:k])),]%*%beta1+
-      z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%ubi[(((k-1)*2)+1) : (k*2),k]
+      z[(sum(nj[1:k-1])+1):(sum(nj[1:k])),]%*%as.matrix(ubi[(((k-1)*q1)+1) : (k*q1),k])
   }                                                                                                                               
   
-  
+
   end.time <- Sys.time()
   time.taken <- end.time - start.time
   

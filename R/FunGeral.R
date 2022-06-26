@@ -67,7 +67,6 @@ MatArpJ<- function(phi,tt,sigma2){
   return(Rnx)
 }
 logliktArplmec <- function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
-  
   p <- dim(x)[2]
   
   m <- length(nj)[1]
@@ -207,11 +206,28 @@ FCiArp<-function(piis,beta1,sigmae, ubi,ubbi,uybi,uyyi,uyi,x,z,tt,nj){
     z1=matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
     tt1=tt[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
     gammai=x1%*%beta1                                                
-    Cii<- MatArp(piis,tt1,sigmae) 
+    Cii<- MatArp(piis,tt1,sigmae)/sigmae
+    Cii <- (Cii + t(Cii))/2
+    if(det(Cii)<=0){A <- 1}else{A <- det(Cii)}
+    invCii <- solve(Cii)
     
-    soma<- soma - 0.5*log(det(as.matrix(Cii)))-0.5*(sum(diag(uyy%*%solve(Cii)))-t(uy)%*%solve(Cii)%*%gammai-t(gammai)%*%solve(Cii)%*%uy-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))
-                                                    +t(gammai)%*%solve(Cii)%*%z1%*%ub+t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+t(gammai)%*%solve(Cii)%*%gammai+sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))
-  }
+
+    
+      Ai= (sum(diag(uyy%*%solve(Cii)))-
+             t(uy)%*%solve(Cii)%*%gammai-
+             t(gammai)%*%solve(Cii)%*%uy-
+             sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))-
+             sum(diag(solve(Cii)%*%((uyb)%*%t(z1))))+
+             t(gammai)%*%solve(Cii)%*%z1%*%ub+
+             t(ub)%*%t(z1)%*%solve(Cii)%*%gammai+
+             t(gammai)%*%solve(Cii)%*%gammai+
+             sum(diag(ubb%*%t(z1)%*%solve(Cii)%*%z1)))
+ 
+      soma <- soma - 0.5*log(A) - (0.5/sigmae)*Ai  
+           
+    
+    
+     }
   
   return(-soma)
 }
@@ -765,6 +781,167 @@ logliknslmec <-  function(y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,struc)
   } 
   
   logvero <- sum(log(ver))
+  
+  return(logvero)
+}
+logliktArplmec_o <- function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,pii){
+  
+  p <- dim(x)[2]
+  
+  m <- length(nj)[1]
+  q1 <- dim(z)[2]
+  gamma1 <- as.vector(c(betas))
+  iD1 <- solve(D1)
+  iD1 <- (iD1 + t(iD1))/2
+  
+  ver <- matrix(0,m,1)
+  
+  for(j in 1:m)
+  {
+    cc1 <- cc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    y1 <- y[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
+    z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
+    tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    W1 <- x1
+    
+    LL1 <- LL[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    LU1 <- LU[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    
+    muii <- W1%*%gamma1
+    if(length(pii)>1 )
+    { eGamma<-MatArp(pii,tt1,sigmae)
+    Gama <- eGamma/sigmae}
+    
+    if(length(pii)==1 )
+    { if(pii!=0 ){
+      eGamma<-MatArp(pii,tt1,sigmae)
+      Gama <- eGamma/sigmae}
+      if(pii==0)
+      { Gama=diag(1,nj[j])
+      eGamma=Gama*sigmae}
+    }
+    invGama <- solve(Gama)
+    SIGMA <- (sigmae*Gama + (z1)%*%D1%*%t(z1)) 
+    SIGMA <-(SIGMA+t(SIGMA))/2
+    SIGMAinv <- solve(SIGMA)
+    Lambda1 <- solve(iD1 + (t(z1)%*%invGama%*%z1)*(1/sigmae))
+    Lambda1 <- (Lambda1 + t(Lambda1))/2
+    
+    if(sum(cc1)==0)
+    {  
+      
+      
+      ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1), mu = as.vector(muii), S = as.matrix(SIGMA), df = nu ))
+      
+    }
+    if(sum(cc1)>=1)
+    {
+      
+      if(sum(cc1)==nj[j])
+      {
+        ver[j,] <- suppressWarnings(TruncatedNormal::pmvt(lb = as.vector(LL1),ub=as.vector(LU1), mu = as.vector(muii),df= nu, sigma = as.matrix(SIGMA)))
+        
+      }
+      else{
+        
+        muiic <-  W1[cc1==1,]%*%gamma1 + SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1)
+        Si <- SIGMA[cc1==1,cc1==1]-SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%SIGMA[cc1==0,cc1==1]
+        Si <- (Si+t(Si))/2
+        
+        Qy0 <- as.numeric(t(y1[cc1==0]-W1[cc1==0,]%*%gamma1)%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1))
+        
+        auxQy0 <- as.numeric((nu + Qy0)/(nu + length(cc1[cc1==0])))
+        
+        Sc0 <- auxQy0*Si
+        
+        LL1c <- LL1[cc1==1]
+        LU1c <- LU1[cc1==1]
+        
+        
+        ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),S =as.matrix(SIGMA[cc1==0,cc1==0]),df= nu)*as.numeric(TruncatedNormal::pmvt(lb = as.vector(LL1c),ub=as.vector(LU1c), mu = as.vector(muiic),df=nu, sigma = as.matrix(Sc0))))
+        
+      }
+      
+    } 
+  } 
+  
+  logvero <- sum(-log(ver))
+  
+  return(logvero)
+}
+logliktslmec_o <-  function(nu,y,x,z,cc,ttc,nj,LL,LU,betas,sigmae,D1,phi1,phi2,struc){
+  p <- dim(x)[2]
+  
+  m <- length(nj)[1]
+  q1 <- dim(z)[2]
+  gamma1 <- as.vector(c(betas))
+  iD1 <- solve(D1)
+  iD1 <- (iD1 + t(iD1))/2
+  
+  ver <- matrix(0,m,1)
+  
+  for(j in 1:m)
+  { 
+    cc1 <- cc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    y1 <- y[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    x1 <- matrix(x[(sum(nj[1:j-1])+1) : (sum(nj[1:j])),  ],ncol=p)
+    z1 <- matrix(z[(sum(nj[1:j-1])+1) : (sum(nj[1:j])) ,  ],ncol=q1)
+    tt1 <- ttc[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    W1 <- x1
+    
+    LL1 <- LL[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    LU1 <- LU[(sum(nj[1:j-1])+1) : (sum(nj[1:j]))]
+    
+    muii <- W1%*%gamma1
+    Gama <- MatDec(tt1,phi1,phi2,struc)
+    invGama <- solve(Gama)
+    SIGMA <- (sigmae*Gama + (z1)%*%D1%*%t(z1)) 
+    SIGMA <-(SIGMA+t(SIGMA))/2
+    SIGMAinv <- solve(SIGMA)
+    Lambda1 <- solve(iD1 + (t(z1)%*%invGama%*%z1)*(1/sigmae))
+    Lambda1 <- (Lambda1 + t(Lambda1))/2
+    
+    if(sum(cc1)==0)
+    {
+      
+      
+      ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1),mu = as.vector(muii), S = as.matrix(SIGMA), df = nu ))
+      
+    }
+    if(sum(cc1)>=1)
+    {
+      
+      if(sum(cc1)==nj[j])
+      {
+        
+        ver[j,] <- suppressWarnings(TruncatedNormal::pmvt(lb = as.vector(LL1),ub=as.vector(LU1), mu= as.vector(muii),df=nu,sigma = as.matrix(SIGMA) ))
+      }
+      else{
+        
+        muiic <-  W1[cc1==1,]%*%gamma1 + SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1)
+        Si <- SIGMA[cc1==1,cc1==1]-SIGMA[cc1==1,cc1==0]%*%solve(SIGMA[cc1==0,cc1==0])%*%SIGMA[cc1==0,cc1==1]
+        Si <- (Si+t(Si))/2
+        
+        Qy0 <- as.numeric(t(y1[cc1==0]-W1[cc1==0,]%*%gamma1)%*%solve(SIGMA[cc1==0,cc1==0])%*%(y1[cc1==0]-W1[cc1==0,]%*%gamma1))
+        
+        auxQy0 <- as.numeric((nu + Qy0)/(nu + length(cc1[cc1==0])))
+        
+        Sc0 <- auxQy0*Si
+        
+        LL1c <- LL1[cc1==1]
+        LU1c <- LU1[cc1==1]
+        
+        
+        ver[j,] <- suppressWarnings(LaplacesDemon::dmvt(x = as.vector(y1[cc1==0]),mu =as.vector(muii[cc1==0]),S =as.matrix(SIGMA[cc1==0,cc1==0]),df = nu)*as.numeric(TruncatedNormal::pmvt(lb = as.vector(LL1c),ub=as.vector(LU1c), mu = as.vector(muiic),df=nu,sigma = as.matrix(Sc0))))
+        
+        
+      }
+      
+    } 
+  } 
+  
+  logvero <- sum(-log(ver))
   
   return(logvero)
 }

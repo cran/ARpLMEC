@@ -81,6 +81,8 @@
 #' @export
 #' 
 #' 
+#' 
+
 ARpMMEC.est=function(y,x,z,tt,cc,nj,struc="UNC",order=1, initial=NULL,nu.fixed=TRUE,
                       typeModel="Normal",cens.type="left", LI=NULL,LS=NULL, MaxIter=200,
                       error=0.0001, Prev=FALSE,step=NULL,isubj=NULL,xpre=NULL,zpre=NULL)
@@ -200,8 +202,7 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj,struc="UNC",order=1, initial=NULL,nu.fixed=T
     
   }
   
-  
-  
+
   if(typeModel=="Normal"){
     if(struc=="ARp"){
       out<-EMCensArpN(cc=cc,y=y,x=x,z=z,tt=tt,nj=nj, Arp=order, initial=initial, cens.type=cens.type, LI=LI,LS=LS,MaxIter=MaxIter,ee=error,
@@ -217,13 +218,16 @@ ARpMMEC.est=function(y,x,z,tt,cc,nj,struc="UNC",order=1, initial=NULL,nu.fixed=T
   if(typeModel=="Student"){
     if(struc=="ARp"){
       out<-EMCensArpT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,Arp=order,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
-                      iter.max=MaxIter,precision=error)}
+                      iter.max=MaxIter,precision=error)
+      }
     if(struc=="UNC"){
-      out<-EMCensArpT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,Arp=struc,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
-                      iter.max=MaxIter,precision=error)}
+          out<-EMCensArpT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,Arp=struc,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
+                      iter.max=MaxIter,precision=error)
+      }
     if(struc=="DEC"|struc=="DEC(AR)"|struc=="SYM"){
       out<-EMCensDECT(cc=cc,y=y,x=x,z=z,ttc=tt,nj=nj,struc=struc,initial=initial,cens.type=cens.type,LL=LI,LU=LS,nu.fixed=nu.fixed,
-                      iter.max=MaxIter,precision=error)}
+                      iter.max=MaxIter,precision=error)
+      }
     
   }
   

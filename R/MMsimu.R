@@ -19,7 +19,8 @@ MMsimu=function(m,x,z,tt,nj,beta,sigmae,D,phi,struc,typeModel,percCensu,nivel.Ce
       for(i in 1:m){
         tt1=tt[(sum(nj[1:i-1])+1) : (sum(nj[1:i]))]
         n=length(tt1)
-        ome2=MatDec(tt1,phi[1],phi[2],struc)
+        if(struc!="UNC")ome2=MatDec(tt1,phi[1],phi[2],struc)
+        if(struc=="UNC")ome2=MatDec(tt1,phi[1],phi[2],struc)
         Omegai <- sigmae*ome2
         errorp=as.vector(LaplacesDemon::rmvn(n=1,mu=rep(0,n), Sigma=Omegai ))
         b<-LaplacesDemon::rmvn(n=1,mu=rep(0,dim(D)[1]), Sigma=D)
@@ -37,7 +38,7 @@ MMsimu=function(m,x,z,tt,nj,beta,sigmae,D,phi,struc,typeModel,percCensu,nivel.Ce
         n=length(tt1)
         ome2=MatArpJ(phi,tt1,sigmae)      
         errorp=as.vector(LaplacesDemon::rmvt(n=1, mu=rep(0,n), S=ome2, df=nu))
-        b <-as.matrix(LaplacesDemon::rmvt(n=1, mu=rep(0,dim(D)[1]), S=D, df= nu),q,1)
+        b <-LaplacesDemon::rmvt(n=1, mu=rep(0,dim(D)[1]), S=D, df= nu)
         y[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]=x[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%beta+z[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%t(b)+errorp
       }}
     if(struc!="ARp"){
@@ -48,8 +49,8 @@ MMsimu=function(m,x,z,tt,nj,beta,sigmae,D,phi,struc,typeModel,percCensu,nivel.Ce
         n=length(tt1)
         ome2 <- MatDec(tt1,phi[1],phi[2],struc)
         Omegai <- sigmae*ome2
-        b <-as.matrix(LaplacesDemon::rmvt(n = 1,mu=rep(0,dim(D)[1]),S =D,df = nu),q,1)
-        errorp <- as.matrix(LaplacesDemon::rmvt(n = 1,mu =  rep(0,nj[i]),S=Omegai,df = nu),nj[i],1)
+        b <-LaplacesDemon::rmvt(n = 1,mu=rep(0,dim(D)[1]),S =D,df = nu)
+        errorp <- as.vector(LaplacesDemon::rmvt(n = 1,mu =  rep(0,nj[i]),S=Omegai,df = nu))
         y[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]=x[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%beta+z[(sum(nj[1:i-1])+1) : (sum(nj[1:i])),]%*%t(b)+errorp
       }
           }

@@ -372,9 +372,12 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
     
     if(nu.fixed==FALSE)
     {
-      nu <- optimize(f = logliktslmec,interval = c(3,30),tol = 0.00001, maximum = TRUE,y=y,x=x,z=z,cc=cc,ttc=ttc,nj=nj,
+      nu <- optimize(f = logliktslmec,interval = c(2.01,30),tol = 0.00001, maximum = TRUE,y=y,x=x,z=z,cc=cc,ttc=ttc,nj=nj,
                      LL=LL,LU=LU,betas=beta1,sigmae=sigmae,D1=D1,phi1=phi1,phi2=phi2,struc=struc)$maximum
-    }
+    
+      
+     
+      }
     
     
     if(struc=="DEC")                                                                     
@@ -430,6 +433,7 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
   if(struc=="DEC(AR)"){Mq<- MatDec(tc,phi1,phi2,"DEC(AR)")}
   if(struc=="SYM"){Mq<-  MatDec(tc,phi1,phi2,"SYM")}
   if(struc=="DEC"){Mq<-  MatDec(tc,phi1,phi2,"DEC")}
+  if(struc=="UNC"){Mq<-  MatDec(tc,phi1,phi2,"UNC")}
   res[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]=(sqrtm(solve(round(z[(sum(nj[1:k-1])+1) : 
                                                                   (sum(nj[1:k])),]%*%D1%*%t(z[(sum(nj[1:k-1])+1)
                                                                                               : (sum(nj[1:k])),])+sigmae*Mq,6)))%*%(yhatorg[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
@@ -504,7 +508,7 @@ EMCensDECT<- function(cc,y,x,z,ttc,nj,struc,initial,cens.type,LL,LU,nu.fixed,ite
     close(pb)
   }
   else
-  {
+    {
     setTkProgressBar(pb, iter.max, label=paste("Convergence at Iter ",count,"/",iter.max,"    -    100 % done",sep = ""))
     close(pb)
   }
@@ -618,7 +622,7 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
   
   
   while(criterio > precision){
-    
+    criterio
     count <- count + 1
     soma1 <- matrix(0,q1,q1)
     soma2 <- 0
@@ -853,8 +857,10 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     
     if(nu.fixed==FALSE)
     {
-      nu <- optimize(f = logliktArplmec, interval = c(3,50),tol = 0.00001, maximum = TRUE,y=y,x=x,z=z,cc=cc,ttc=ttc,nj=nj,LL=LL,LU=LU,betas=beta1,sigmae=sigmae,D1=D1,pii=pii)$maximum
-      
+      nu <- optimize(f = logliktArplmec, interval = c(2.01,30),
+                          tol = 0.00001, maximum = TRUE,y=y,x=x,z=z,
+                          cc=cc,ttc=ttc,nj=nj,LL=LL,LU=LU,betas=beta1,
+                          sigmae=sigmae,D1=D1,pii=pii)$maximum
     }
     
     
@@ -882,6 +888,8 @@ EMCensArpT<- function(cc,y,x,z,ttc,nj,Arp,initial,cens.type,LL,LU,nu.fixed,iter.
     loglikp <- loglikp1
     
   } 
+  
+  
   for (k in 1:length(nj)) 
   {tc<-ttc[(sum(nj[1:k-1])+1) : (sum(nj[1:k]))]
   if(Arp=="UNC"){Mq<-diag(1,length(tc))}

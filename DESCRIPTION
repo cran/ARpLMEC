@@ -2,8 +2,8 @@ Package: ARpLMEC
 Type: Package
 Title: Censored Mixed-Effects Models with Different Correlation
         Structures
-Version: 2.4
-Date: 2022-05-18
+Version: 2.4.1
+Date: 2022-06-02
 Author: Rommy C. Olivari, Kelin Zhong, Aldo M. Garay and Victor H. Lachos 
 Maintainer: Rommy C. Olivari <rco1@de.ufpe.br>
 Description: Left, right or interval censored mixed-effects linear model with autoregressive errors of order p or DEC correlation structure using the type-EM algorithm. The error distribution  can be Normal or t-Student. It provides the  parameter estimates, the standard errors  and prediction of future observations (available only for the normal case). Olivari et all (2021) <doi:10.1080/10543406.2020.1852246>.
@@ -14,6 +14,6 @@ NeedsCompilation: no
 License: GPL (>= 2)
 RoxygenNote: 7.2.0
 Encoding: UTF-8
-Packaged: 2022-05-20 00:40:50 UTC; Rommy
+Packaged: 2022-06-02 19:09:43 UTC; Rommy
 Repository: CRAN
-Date/Publication: 2022-05-20 06:10:06 UTC
+Date/Publication: 2022-06-26 23:50:02 UTC
